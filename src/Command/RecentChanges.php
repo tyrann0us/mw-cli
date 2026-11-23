@@ -115,7 +115,8 @@ class RecentChanges extends Command {
 				'namespace' => $hideAction ? null : (int)$row->rc_namespace,
 				'user' => $hidden & RevisionRecord::DELETED_USER ? null : $row->actor_name,
 				'comment' => $hidden & RevisionRecord::DELETED_COMMENT ? null : $row->comment_text,
-				'revision' => (int)$row->rc_this_oldid ?: null,
+				// A log entry's null revision would point back to its hidden target.
+				'revision' => $hideAction ? null : ( (int)$row->rc_this_oldid ?: null ),
 				'action' => $row->rc_log_type === null || $hideAction
 					? null
 					: $row->rc_log_type . '/' . $row->rc_log_action,

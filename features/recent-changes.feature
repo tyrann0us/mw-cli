@@ -61,10 +61,10 @@ Feature: List recent changes
   Scenario: Hidden user names, edit summaries and log actions stay hidden
     When I run "mw maint sql --query='UPDATE /*_*/recentchanges SET rc_deleted = 6 WHERE rc_this_oldid = 3'"
     And I run "mw maint sql --query='UPDATE /*_*/recentchanges SET rc_deleted = 1 WHERE rc_log_type IS NOT NULL'"
-    And I run "mw recent-changes --limit=3 --format=json --fields=type,title,namespace,action,user,comment"
+    And I run "mw recent-changes --limit=3 --format=json --fields=type,title,namespace,action,revision,user,comment"
     Then STDOUT should be:
       """
-      [{"type":"log","title":null,"namespace":null,"action":null,"user":"Maintenance script","comment":"Vandalism"},{"type":"new","title":"Help:Intro","namespace":12,"action":null,"user":"Admin","comment":""},{"type":"edit","title":"Sandbox","namespace":0,"action":null,"user":null,"comment":null}]
+      [{"type":"log","title":null,"namespace":null,"action":null,"revision":null,"user":"Maintenance script","comment":"Vandalism"},{"type":"new","title":"Help:Intro","namespace":12,"action":null,"revision":4,"user":"Admin","comment":""},{"type":"edit","title":"Sandbox","namespace":0,"action":null,"revision":3,"user":null,"comment":null}]
       """
     When I run "mw recent-changes --by=Admin --field=title"
     Then STDOUT should be:
