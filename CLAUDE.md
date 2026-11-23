@@ -58,7 +58,7 @@ Tests come in two layers:
 - `features/` (Behat): one `.feature` per command group, run against the dockerized test wiki. Steps read like `Given a wiki`, `When I run "mw page get Main_Page"`, `Then STDOUT should contain:`, `Then the return code should be 1`. The step definitions are in `features/bootstrap/FeatureContext.php`. Each scenario resets the wiki from a SQLite snapshot, so scenarios are independent.
 - Scenarios tagged `@smw` need Semantic MediaWiki. Scenarios tagged `@ssh` run `mw --ssh=root@localhost…` inside the container, which runs sshd and trusts its own key. Commands in steps run via `docker compose exec` in `/var/www/html` (override with `MW_CLI_EXEC`).
 
-CI (`.github/workflows/test.yml`) runs lint and unit tests on PHP 8.1 to 8.4. It runs Behat against MediaWiki 1.43, once with SMW and once without.
+CI uses inpsyde/reusable-workflows: `quality-assurance-php.yml` runs lint, phpcs and PHPUnit (PHP 8.1 to 8.4). `functional-tests.yml` runs Behat against MediaWiki 1.43, once with SMW and once without.
 
 ## Roadmap
 

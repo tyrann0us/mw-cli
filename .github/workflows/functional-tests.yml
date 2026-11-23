@@ -1,0 +1,39 @@
+name: 'Functional Tests'
+on:
+  pull_request:
+    paths:
+      - '**.php'
+      - 'bin/mw'
+      - 'composer.json'
+      - 'behat.yml'
+      - 'docker-compose.yml'
+      - 'features/**'
+      - 'tests/docker/**'
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  behat:
+    name: 'Behat (SMW: ${{ matrix.smw }})'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      matrix:
+        smw: ['0', '1']
+    env:
+      SMW: ${{ matrix.smw }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+      - run: composer install --no-interaction --no-progress
+      - run: docker compose up -d --build --wait
+      - run: vendor/bin/behat --format=progress ${{ matrix.smw == '0' && '--tags=~@smw' || '' }}
+      - name: Dump container logs on failure
+        if: failure()
+        run: docker compose logs
