@@ -112,7 +112,7 @@ Feature: List category members and the categories of pages
     Then the return code should be 1
     And STDERR should contain:
       """
-      Error: Unknown namespace ''.
+      Error: --namespace needs a value.
       """
     When I try "mw category members '<'"
     Then the return code should be 1
