@@ -20,12 +20,13 @@ class ConfigTest extends TestCase {
 	}
 
 	public function testProjectConfigOverridesGlobalAndResolvesRelativePath(): void {
-		file_put_contents( "$this->dir/home/.mw/config.ini", "ssh = global\npath = /global\n" );
-		file_put_contents( "$this->dir/project/mw.ini", "path = w\n" );
+		file_put_contents( "$this->dir/home/.mw/config.ini", "user = Global\nquiet = true\n" );
+		file_put_contents( "$this->dir/project/mw.ini", "user = Project\npath = w\n" );
 		[ $config, $files ] = Config::load( "$this->dir/project/sub", "$this->dir/home" );
 
 		$this->assertSame( [ "$this->dir/home/.mw/config.ini", "$this->dir/project/mw.ini" ], $files );
-		$this->assertSame( 'global', $config['ssh'] );
+		$this->assertSame( 'Project', $config['user'] );
+		$this->assertTrue( $config['quiet'] );
 		$this->assertSame( "$this->dir/project/w", Config::resolve( $config, null, [] )['path'] );
 	}
 
@@ -43,16 +44,20 @@ class ConfigTest extends TestCase {
 		$this->assertSame( 'w', Config::resolve( $config, '@prod', [] )['remote-path'] );
 	}
 
+	public function testQuietAcceptsFalseStrings(): void {
+		$this->assertFalse( Config::resolve( [], null, [ 'quiet' => 'false' ] )['quiet'] );
+		$this->assertTrue( Config::resolve( [], null, [ 'quiet' => true ] )['quiet'] );
+	}
+
 	public function testLocalAliasOverridesConfigAndFlagsOverrideAlias(): void {
-		$config = [ 'path' => '/a', '@local' => [ 'path' => '/b' ] ];
-		$this->assertSame( [ 'path' => '/b' ], Config::resolve( $config, '@local', [] ) );
-		$this->assertSame( [ 'path' => '/c' ], Config::resolve( $config, '@local', [ 'path' => '/c' ] ) );
+		$config = [ 'path' => '/a', 'user' => 'A', '@local' => [ 'path' => '/b', 'user' => 'B' ] ];
+		$this->assertSame( [ 'path' => '/b', 'user' => 'C' ], Config::resolve( $config, '@local', [ 'user' => 'C' ] ) );
 	}
 
 	public function testSshAliasKeepsPathAndUserForTheRemoteHost(): void {
 		$config = [ 'path' => '/local', '@prod' => [ 'ssh' => 'host', 'path' => '/srv', 'user' => 'Bot' ] ];
 		$this->assertSame(
-			[ 'path' => '/local', 'remote-path' => '/srv', 'ssh' => 'host' ],
+			[ 'path' => '/local', 'remote-path' => '/srv', 'remote-user' => 'Bot', 'ssh' => 'host' ],
 			Config::resolve( $config, '@prod', [] )
 		);
 	}

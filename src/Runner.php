@@ -11,7 +11,7 @@ use ReflectionMethod;
  */
 class Runner {
 	public const VERSION = '0.1.0';
-	public const GLOBAL_FLAGS = [ 'path', 'ssh' ];
+	public const GLOBAL_FLAGS = [ 'path', 'ssh', 'user', 'quiet' ];
 
 	/** @var array<string,class-string<Command>> */
 	public array $commands = [];
@@ -24,6 +24,7 @@ class Runner {
 	/** @var string[] Config files that were read. */
 	public array $configFiles = [];
 
+	private static bool $quiet = false;
 	private ?string $alias = null;
 	/** @var string[] argv without the alias, for forwarding over SSH. */
 	private array $tokens = [];
@@ -62,6 +63,7 @@ class Runner {
 
 		[ $config, $this->configFiles ] = Config::load( $cwd, $home );
 		$this->global = Config::resolve( $config, $this->alias, $flags );
+		self::$quiet = !empty( $this->global['quiet'] );
 	}
 
 	/**
@@ -113,8 +115,10 @@ class Runner {
 		$end = is_int( $end ) ? $end : count( $this->tokens );
 		$own = array_slice( $this->tokens, 0, $end );
 		$forward = [ ...preg_grep( '/^--ssh(=|$)/', $own, PREG_GREP_INVERT ) ?: [], ...array_slice( $this->tokens, $end ) ];
-		if ( $path !== null && !preg_grep( '/^--path(=|$)/', $own ) ) {
-			array_unshift( $forward, "--path=$path" );
+		foreach ( [ 'path' => $path, 'user' => $this->flag( 'remote-user' ) ] as $key => $value ) {
+			if ( $value !== null && !preg_grep( "/^--$key(=|$)/", $own ) ) {
+				array_unshift( $forward, "--$key=$value" );
+			}
 		}
 
 		$remote = implode( ' ', array_map( 'escapeshellarg', [ 'mw', ...$forward ] ) );
@@ -162,7 +166,7 @@ class Runner {
 	}
 
 	/**
-	 * A global flag. Config::resolve() made sure path, ssh and remote-path are strings.
+	 * A global flag. Config::resolve() made sure path, ssh, user and their remote- forms are strings.
 	 */
 	public function flag( string $key ): ?string {
 		$value = $this->global[$key] ?? null;
@@ -297,7 +301,39 @@ class Runner {
 		echo $message, "\n";
 	}
 
+	public static function success( string $message ): void {
+		if ( !self::$quiet ) {
+			echo "Success: $message\n";
+		}
+	}
+
+	public static function warning( string $message ): void {
+		if ( !self::$quiet ) {
+			fwrite( STDERR, "Warning: $message\n" );
+		}
+	}
+
 	public static function error( string $message, int $code = 1 ): never {
 		throw new ExitException( $message, $code );
+	}
+
+	/**
+	 * Asks for a yes/no answer unless --yes was passed. Exits quietly with 0 on anything but "y".
+	 *
+	 * @param string $question
+	 * @param array<string,string|bool> $assoc
+	 */
+	public static function confirm( string $question, array $assoc ): void {
+		if ( !empty( $assoc['yes'] ) ) {
+			return;
+		}
+		echo "$question [y/n] ";
+		$answer = fgets( STDIN );
+		if ( $answer === false ) {
+			self::error( 'No answer on stdin. Pass --yes to run without confirmation.' );
+		}
+		if ( strtolower( trim( $answer ) ) !== 'y' ) {
+			throw new ExitException( '', 0 );
+		}
 	}
 }
