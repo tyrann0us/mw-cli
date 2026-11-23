@@ -94,13 +94,13 @@ Feature: List category members and the categories of pages
     Then the return code should be 1
     And STDERR should contain:
       """
-      Error: Unknown namespace: Nope.
+      Error: Unknown namespace 'Nope'.
       """
     When I try "mw category members Fruit --namespace=9999"
     Then the return code should be 1
     And STDERR should contain:
       """
-      Error: Unknown namespace: 9999.
+      Error: Unknown namespace '9999'.
       """
     When I try "mw category members Fruit --namespace"
     Then the return code should be 1
@@ -112,7 +112,7 @@ Feature: List category members and the categories of pages
     Then the return code should be 1
     And STDERR should contain:
       """
-      Error: --namespace needs a value.
+      Error: Unknown namespace ''.
       """
     When I try "mw category members '<'"
     Then the return code should be 1

@@ -55,7 +55,7 @@ class Category extends Command {
 		if ( $type !== null && !in_array( $type, $types, true ) ) {
 			Runner::error( 'Invalid type. Use one of: ' . implode( ', ', $types ) . '.' );
 		}
-		$ns = isset( $assoc_args['namespace'] ) ? $this->namespace( $assoc_args['namespace'] ) : null;
+		$ns = isset( $assoc_args['namespace'] ) ? $this->namespace( (string)$assoc_args['namespace'] ) : null;
 
 		$rows = [];
 		foreach ( MwCategory::newFromTitle( $this->categoryTitle( $args[0] ) )->getMembers() as $title ) {
