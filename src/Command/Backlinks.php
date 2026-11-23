@@ -46,8 +46,8 @@ class Backlinks extends Command {
 	 */
 	public function __invoke( array $args, array $assoc_args ): void {
 		$target = $this->services()->getTitleFactory()->newFromText( $args[0], static::DEFAULT_NAMESPACE );
-		// Interwiki and special pages have no link table entries.
-		if ( !$target || $target->isExternal() || $target->getNamespace() < 0 ) {
+		// Interwiki and special pages have no link table entries, and a bare "#fragment" names no page.
+		if ( !$target || $target->isExternal() || $target->getNamespace() < 0 || $target->getDBkey() === '' ) {
 			Runner::error( "Invalid title: $args[0]." );
 		}
 		$query = $this->services()->getConnectionProvider()->getReplicaDatabase()->newSelectQueryBuilder()
