@@ -5,7 +5,6 @@ namespace MwCli\Command;
 use MediaWiki\Category\Category;
 use MediaWiki\CommentStore\CommentStoreComment;
 use MediaWiki\Context\RequestContext;
-use MediaWiki\MainConfigNames;
 use MediaWiki\Page\PageIdentity;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Revision\SlotRecord;
@@ -75,9 +74,11 @@ class SearchReplace extends Command {
 			restore_error_handler();
 		}
 		$pages = $this->pages( $assoc_args );
+		if ( $this->cli->flag( 'user' ) !== null ) {
+			// Fails on an unknown user now. Without --user, the maintenance user is created only once confirmed.
+			$this->performer();
+		}
 		$dryRun = !empty( $assoc_args['dry-run'] );
-		// A dry run shouldn't create the maintenance user.
-		$performer = $dryRun ? null : $this->performer();
 
 		$factory = $this->services()->getWikiPageFactory();
 		$changes = [];
@@ -111,11 +112,12 @@ class SearchReplace extends Command {
 			return;
 		}
 		$summary = self::plural( count( $changes ), 'page' ) . ', ' . self::plural( $total, 'replacement' );
-		if ( $dryRun || $performer === null ) {
+		if ( $dryRun ) {
 			Runner::success( "Would change $summary." );
 			return;
 		}
 		Runner::confirm( "Change $summary?", $assoc_args );
+		$performer = $this->performer();
 
 		$comment = CommentStoreComment::newUnsavedComment( (string)(
 			( $assoc_args['summary'] ?? '' ) ?: "Replace $regex with \"$replacement\" (mw search-replace)"
@@ -178,7 +180,7 @@ class SearchReplace extends Command {
 			$members = iterator_to_array( Category::newFromTitle( $title )->getMembers(), false );
 			return array_filter( $members, static fn ( $member ) => $namespace === null || $member->inNamespace( $namespace ) );
 		}
-		$namespaces = $namespace ?? $this->services()->getMainConfig()->get( MainConfigNames::ContentNamespaces );
+		$namespaces = $namespace ?? $this->services()->getNamespaceInfo()->getContentNamespaces();
 		$db = $this->services()->getConnectionProvider()->getReplicaDatabase();
 		return $this->services()->getPageStore()->newSelectQueryBuilder( $db )
 			->where( [ 'page_namespace' => $namespaces ] )
