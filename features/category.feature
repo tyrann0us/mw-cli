@@ -56,6 +56,12 @@ Feature: List category members and the categories of pages
       """
       0
       """
+    When I run "mw category members Fruit --namespace=0 --type=page --field=title"
+    Then STDOUT should be:
+      """
+      Apple
+      Banana
+      """
     When I run "mw category members Fruit --namespace=0 --type=page --format=ids"
     Then STDOUT should be like:
       """
