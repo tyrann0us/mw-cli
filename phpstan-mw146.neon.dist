@@ -1,0 +1,7 @@
+# Catches MediaWiki APIs removed after 1.43 (e.g. MainConfigNames::BaseDirectory in 1.46).
+includes:
+  - phpstan-base.neon
+parameters:
+  scanDirectories:
+    - vendor/mediawiki/core-1.46/includes
+    - vendor/mediawiki/core-1.46/maintenance/includes

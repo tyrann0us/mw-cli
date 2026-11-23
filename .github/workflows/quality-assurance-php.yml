@@ -6,7 +6,7 @@ on:
       - 'bin/mw'
       - 'composer.*'
       - '.phpcs.xml'
-      - 'phpstan.neon.dist'
+      - 'phpstan*.neon*'
       - 'phpunit.xml.dist'
       - '.github/workflows/quality-assurance-php.yml'
   push:
@@ -32,6 +32,12 @@ jobs:
     uses: inpsyde/reusable-workflows/.github/workflows/static-analysis-php.yml@main
     with:
       PHP_VERSION: '8.4'
+  # Same analysis against MediaWiki 1.46, for APIs removed after 1.43.
+  static-analysis-php-mw146:
+    uses: inpsyde/reusable-workflows/.github/workflows/static-analysis-php.yml@main
+    with:
+      PHP_VERSION: '8.4'
+      PHPSTAN_ARGS: 'analyse --no-progress --memory-limit=1G -c phpstan-mw146.neon.dist'
   unit-tests-php:
     uses: inpsyde/reusable-workflows/.github/workflows/tests-unit-php.yml@feature/188-codecov-support-unit-tests-php
     strategy:

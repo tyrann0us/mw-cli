@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "6fe4ad7ff7d13d07ea30204954e687f7",
+    "content-hash": "37671cc63197bc33ded7ed97e47ee189",
     "packages": [],
     "packages-dev": [
         {
@@ -603,6 +603,16 @@
             },
             "type": "library",
             "description": "MediaWiki source for static analysis only."
+        },
+        {
+            "name": "mediawiki/core-1.46",
+            "version": "1.46.3",
+            "dist": {
+                "type": "zip",
+                "url": "https://github.com/wikimedia/mediawiki/archive/refs/tags/1.46.3.zip"
+            },
+            "type": "library",
+            "description": "MediaWiki 1.46 source for static analysis only."
         },
         {
             "name": "mediawiki/mediawiki-codesniffer",

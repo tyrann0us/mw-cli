@@ -12,6 +12,7 @@
     "require-dev": {
         "behat/behat": "^3.14",
         "mediawiki/core": "1.43.12",
+        "mediawiki/core-1.46": "1.46.3",
         "mediawiki/mediawiki-codesniffer": "^48",
         "phpstan/phpstan": "^2",
         "phpunit/phpunit": "^10.5 || ^11 || ^12"
@@ -22,9 +23,21 @@
             "package": {
                 "name": "mediawiki/core",
                 "version": "1.43.12",
-                "description": "MediaWiki source for static analysis only.",
+                "description": "MediaWiki 1.43 source for static analysis only.",
                 "dist": {
                     "url": "https://github.com/wikimedia/mediawiki/archive/refs/tags/1.43.12.zip",
+                    "type": "zip"
+                }
+            }
+        },
+        {
+            "type": "package",
+            "package": {
+                "name": "mediawiki/core-1.46",
+                "version": "1.46.3",
+                "description": "MediaWiki 1.46 source for static analysis only.",
+                "dist": {
+                    "url": "https://github.com/wikimedia/mediawiki/archive/refs/tags/1.46.3.zip",
                     "type": "zip"
                 }
             }
@@ -49,7 +62,10 @@
             "phpunit",
             "behat"
         ],
-        "phpstan": "phpstan"
+        "phpstan": [
+            "phpstan analyse --memory-limit=2G",
+            "phpstan analyse --memory-limit=2G -c phpstan-mw146.neon.dist"
+        ]
     },
     "config": {
         "allow-plugins": {

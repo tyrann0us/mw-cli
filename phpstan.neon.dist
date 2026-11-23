@@ -1,9 +1,6 @@
+includes:
+  - phpstan-base.neon
 parameters:
-  level: 8
-  paths:
-    - bin/mw
-    - src/
-  treatPhpDocTypesAsCertain: false
   # MediaWiki 1.43 source, installed as a dev dependency for analysis only.
   scanDirectories:
     - vendor/mediawiki/core/includes

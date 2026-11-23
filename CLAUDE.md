@@ -16,7 +16,7 @@ composer test                         # unit + functional
 vendor/bin/phpunit                    # unit tests
 vendor/bin/phpunit --filter ConfigTest::testUnknownAliasFails   # single unit test
 composer lint                         # php -l + phpcs (mediawiki/mediawiki-codesniffer)
-composer phpstan                      # level 8 on src/ and bin/mw, scans MediaWiki 1.43 from vendor/mediawiki/core
+composer phpstan                      # level 8 on src/ and bin/mw, once against MediaWiki 1.43 and once against 1.46
 
 docker compose up -d --build --wait  # test wiki: MediaWiki 1.43 + SQLite + sshd
 # Variants (docker compose down first): MW=1.46, MW=1.46 MW_BRANCH=master, SMW=1,
@@ -68,7 +68,7 @@ Tests come in two layers:
 
 The container installs the wiki on first start (`tests/docker/setup.sh`) and snapshots the database; `reset-wiki` restores it before each scenario. With `COVERAGE=1`, `tests/coverage/prepend.php` is prepended to every PHP process in the container and writes raw pcov data to `build/coverage/`.
 
-CI uses inpsyde/reusable-workflows where one exists. `quality-assurance-php.yml` runs lint, phpcs, PHPStan and PHPUnit on PHP 8.1 to 8.4, with unit coverage going to Codecov. `functional-tests.yml` calls `behat.yml` for MediaWiki 1.43 and 1.46 on SQLite and MariaDB, 1.43 with SMW (this job also uploads Behat coverage), and MediaWiki master in the daily cron only. `lint.yml` runs actionlint, gherkin-lint and typos. `.codecov.yml` requires 100% coverage, combining unit and Behat coverage. `composer.lock` is committed and resolved for PHP 8.1 (`config.platform`).
+CI uses inpsyde/reusable-workflows where one exists. `quality-assurance-php.yml` runs lint, phpcs, PHPStan (against MediaWiki 1.43 and 1.46) and PHPUnit on PHP 8.1 to 8.4, with unit coverage going to Codecov. `functional-tests.yml` calls `behat.yml` for MediaWiki 1.43 and 1.46 on SQLite and MariaDB, 1.43 with SMW (this job also uploads Behat coverage), and MediaWiki master in the daily cron only. `lint.yml` runs actionlint, gherkin-lint and typos. `.codecov.yml` requires 100% coverage, combining unit and Behat coverage. `composer.lock` is committed and resolved for PHP 8.1 (`config.platform`).
 
 ## Roadmap
 
