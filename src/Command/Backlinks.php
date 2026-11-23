@@ -4,6 +4,7 @@ namespace MwCli\Command;
 
 use MwCli\Command;
 use MwCli\Formatter;
+use MwCli\Runner;
 
 /**
  * Lists pages that link to a page.
@@ -42,7 +43,8 @@ class Backlinks extends Command {
 	 * @param array<string,string|bool> $assoc_args
 	 */
 	public function __invoke( array $args, array $assoc_args ): void {
-		$target = $this->title( $args[0] );
+		$target = $this->services()->getTitleFactory()->newFromText( $args[0] )
+			?? Runner::error( "Invalid title: $args[0]." );
 		$query = $this->services()->getConnectionProvider()->getReplicaDatabase()->newSelectQueryBuilder()
 			->select( [ 'page_id', 'page_namespace', 'page_title' ] )
 			->from( static::TABLE )
