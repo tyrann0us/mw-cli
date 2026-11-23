@@ -95,7 +95,9 @@ class Page extends Command {
 		$updater->setContent( SlotRecord::MAIN, $content );
 		$revision = $updater->saveRevision(
 			CommentStoreComment::newUnsavedComment( (string)( $assoc_args['summary'] ?? '' ) ),
-			!empty( $assoc_args['minor'] ) ? EDIT_MINOR : 0
+			( !empty( $assoc_args['minor'] ) ? EDIT_MINOR : 0 )
+				| ( !empty( $assoc_args['create-only'] ) ? EDIT_NEW : 0 )
+				| ( ( $assoc_args['create'] ?? true ) === false ? EDIT_UPDATE : 0 )
 		);
 		$this->check( $updater->getStatus() );
 		if ( $revision === null ) {
@@ -138,11 +140,15 @@ class Page extends Command {
 		$query = $this->services()->getPageStore()->newSelectQueryBuilder( $db )
 			->orderBy( [ 'page_namespace', 'page_title' ] )
 			->caller( __METHOD__ );
-		if ( isset( $assoc_args['namespace'] ) ) {
-			$query->whereNamespace( $this->namespace( (string)$assoc_args['namespace'] ) );
+		$namespace = isset( $assoc_args['namespace'] ) ? $this->namespace( (string)$assoc_args['namespace'] ) : null;
+		if ( $namespace !== null ) {
+			$query->whereNamespace( $namespace );
 		}
 		if ( isset( $assoc_args['prefix'] ) ) {
 			$prefix = strtr( (string)$assoc_args['prefix'], ' ', '_' );
+			if ( $this->services()->getNamespaceInfo()->isCapitalized( $namespace ?? NS_MAIN ) ) {
+				$prefix = $this->services()->getContentLanguage()->ucfirst( $prefix );
+			}
 			$query->where( $db->expr( 'page_title', IExpression::LIKE, new LikeValue( $prefix, $db->anyString() ) ) );
 		}
 
@@ -182,9 +188,9 @@ class Page extends Command {
 	 */
 	public function delete( array $args, array $assoc_args ): void {
 		$titles = $this->existing( $args );
-		$performer = $this->performer();
 		$question = count( $titles ) === 1 ? "Delete '{$titles[0]->getPrefixedText()}'?" : 'Delete ' . count( $titles ) . ' pages?';
 		Runner::confirm( $question, $assoc_args );
+		$performer = $this->performer();
 		$factory = $this->services()->getDeletePageFactory();
 		foreach ( $titles as $title ) {
 			$this->check( $factory->newDeletePage( $title->toPageIdentity(), $performer )->deleteUnsafe( (string)( $assoc_args['reason'] ?? '' ) ) );
@@ -194,6 +200,8 @@ class Page extends Command {
 
 	/**
 	 * Moves (renames) a page.
+	 *
+	 * Only this page moves. Its talk page and subpages stay where they are.
 	 *
 	 * ## OPTIONS
 	 *
@@ -276,7 +284,8 @@ class Page extends Command {
 		$store = $this->services()->getRestrictionStore();
 		$limit = [];
 		$expiries = [];
-		foreach ( [ 'edit', 'move' ] as $action ) {
+		// doUpdateRestrictions() replaces all of them, so pass on the ones we don't change.
+		foreach ( $store->listApplicableRestrictionTypes( $title ) as $action ) {
 			$level = $assoc_args[$action] ?? null;
 			if ( $level === null ) {
 				$limit[$action] = implode( ',', $store->getRestrictions( $title, $action ) );
@@ -289,7 +298,7 @@ class Page extends Command {
 			}
 		}
 
-		$cascade = false;
+		$cascade = $store->areRestrictionsCascading( $title );
 		$page = $this->services()->getWikiPageFactory()->newFromTitle( $title );
 		$this->check( $page->doUpdateRestrictions(
 			$limit, $expiries, $cascade, (string)( $assoc_args['reason'] ?? '' ), $this->performer()

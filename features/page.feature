@@ -121,7 +121,7 @@ Feature: Read, edit and manage pages
       "Main Page",0,false
       Help:Foo,12,false
       """
-    When I run "mw page list --prefix=Foo --field=title"
+    When I run "mw page list --prefix=foo --field=title"
     Then STDOUT should be:
       """
       Foo

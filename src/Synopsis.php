@@ -7,7 +7,7 @@ namespace MwCli;
  * (`<arg>`, `[<arg>...]`, `--key=<value>`, `[--flag]`, `[--no-flag]`, `[--<field>=<value>]`) and the text for help.
  * Lines from the first @-tag on (e.g. @param) are left out.
  *
- * @phpstan-type SynopsisData array{summary: string, text: string, synopsis: string, positional: list<array{name: string, optional: bool, repeating: bool}>, assoc: array<string,bool>, generic: bool}
+ * @phpstan-type SynopsisData array{summary: string, text: string, synopsis: string, positional: list<array{name: string, optional: bool, repeating: bool}>, assoc: array<string,bool>, valued: list<string>, generic: bool}
  */
 class Synopsis {
 	/**
@@ -28,6 +28,7 @@ class Synopsis {
 			'synopsis' => '',
 			'positional' => [],
 			'assoc' => [],
+			'valued' => [],
 			'generic' => false,
 		];
 		$tokens = [];
@@ -42,6 +43,9 @@ class Synopsis {
 			} elseif ( ( $m[4] ?? '' ) !== '' ) {
 				// Runner::parseArgv() reads --no-x as x=false.
 				$out['assoc'][str_starts_with( $m[4], 'no-' ) ? substr( $m[4], 3 ) : $m[4]] = !$optional;
+				if ( ( $m[5] ?? '' ) !== '' ) {
+					$out['valued'][] = $m[4];
+				}
 			} else {
 				$out['generic'] = true;
 			}
@@ -71,6 +75,11 @@ class Synopsis {
 		foreach ( $synopsis['assoc'] as $name => $isRequired ) {
 			if ( $isRequired && !isset( $assoc[$name] ) ) {
 				return "Missing --$name.";
+			}
+		}
+		foreach ( $synopsis['valued'] as $name ) {
+			if ( is_bool( $assoc[$name] ?? null ) ) {
+				return "--$name needs a value.";
 			}
 		}
 		$unknown = array_diff( array_keys( $assoc ), array_keys( $synopsis['assoc'] ) );

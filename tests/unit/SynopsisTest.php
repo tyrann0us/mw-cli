@@ -56,6 +56,7 @@ class SynopsisTest extends TestCase {
 		$this->assertNull( Synopsis::validate( $s, [ 'A', 'B', 'C' ], [ 'summary' => 'x' ] ) );
 		$this->assertSame( 'Missing argument: title.', Synopsis::validate( $s, [], [ 'summary' => 'x' ] ) );
 		$this->assertSame( 'Missing --summary.', Synopsis::validate( $s, [ 'A' ], [] ) );
+		$this->assertSame( '--format needs a value.', Synopsis::validate( $s, [ 'A' ], [ 'summary' => 'x', 'format' => true ] ) );
 		$this->assertSame( 'Unknown parameter: --nope.', Synopsis::validate( $s, [ 'A' ], [ 'summary' => 'x', 'nope' => true ] ) );
 	}
 
