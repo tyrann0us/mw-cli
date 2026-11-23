@@ -58,7 +58,7 @@ class Ask extends Command {
 		// Output goes through --format. format=count or format=debug would change the query mode and limit.
 		$params = preg_grep( '/^format\s*=/i', $params, PREG_GREP_INVERT ) ?: [];
 		if ( isset( $assoc_args['limit'] ) ) {
-			if ( !ctype_digit( (string)$assoc_args['limit'] ) || (int)$assoc_args['limit'] === 0 ) {
+			if ( !ctype_digit( (string)$assoc_args['limit'] ) || (int)$assoc_args['limit'] < 1 ) {
 				Runner::error( '--limit must be a positive number.' );
 			}
 			$params[] = 'limit=' . $assoc_args['limit'];
@@ -91,9 +91,9 @@ class Ask extends Command {
 			$rows[] = $row;
 		}
 		Formatter::items( $rows, $assoc_args, $fields );
-		// The limit may come from --limit, limit= in the query or SMW's maximum.
+		// The limit may come from --limit, limit= or offset= in the query, or SMW's maximum.
 		if ( $result->hasFurtherResults() ) {
-			Runner::warning( "There are more results than the {$query->getLimit()} shown." );
+			Runner::warning( 'There are more results than shown.' );
 		}
 	}
 }

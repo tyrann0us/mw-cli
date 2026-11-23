@@ -25,7 +25,7 @@ Feature: Run Semantic MediaWiki queries
       """
     And STDERR should contain:
       """
-      Warning: There are more results than the 1 shown.
+      Warning: There are more results than shown.
       """
     When I run "mw ask '[[Street::Main Street]]' --format=ids"
     Then STDOUT should be:
