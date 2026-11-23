@@ -54,7 +54,7 @@ class Page extends Command {
 	 * : File with the new text. Reads stdin if left out.
 	 *
 	 * [--summary=<summary>]
-	 * : Edit summary. MediaWiki's automatic summary if left out, e.g. "Created page with …".
+	 * : Edit summary. If left out, MediaWiki fills one in for new, blanked or replaced pages.
 	 *
 	 * [--minor]
 	 * : Mark the edit as minor.
@@ -304,7 +304,8 @@ class Page extends Command {
 		$this->check( $page->doUpdateRestrictions(
 			$limit, $expiries, $cascade, (string)( $assoc_args['reason'] ?? '' ), $this->performer()
 		) );
-		Runner::success( "Protected '{$title->getPrefixedText()}': edit=" . ( $limit['edit'] ?: 'all' ) . ', move=' . ( $limit['move'] ?: 'all' ) . '.' );
+		$now = array_map( static fn ( $action, $level ) => "$action=" . ( $level ?: 'all' ), array_keys( $limit ), $limit );
+		Runner::success( "Protected '{$title->getPrefixedText()}': " . implode( ', ', $now ) . '.' );
 	}
 
 	/**

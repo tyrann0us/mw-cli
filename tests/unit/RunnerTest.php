@@ -67,7 +67,7 @@ class RunnerTest extends TestCase {
 	}
 
 	public function testRawArgsKeepRepeatedOptionsAndDropGlobalFlags(): void {
-		$cli = new Runner( [ '--quiet', 'maint', 'x', '--skip=a', '--user=Bot', '--skip=b', '--', '--user=Admin' ], $this->dir, null );
+		$cli = new Runner( [ '--quiet', 'maint', 'x', '--skip=a', '--user=Bot', '--no-quiet', '--skip=b', '--', '--user=Admin' ], $this->dir, null );
 		$this->assertSame( [ 'x', '--skip=a', '--skip=b', '--user=Admin' ], $cli->rawArgs() );
 	}
 

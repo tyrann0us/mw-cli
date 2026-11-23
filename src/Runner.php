@@ -226,7 +226,7 @@ class Runner {
 				// "--" only ends mw's own flags; what follows is passed on as-is.
 				return [ ...$out, ...array_slice( $this->tokens, $i + 1 ) ];
 			}
-			if ( preg_match( '/^--(' . implode( '|', self::GLOBAL_FLAGS ) . ')(=|$)/', $token ) ) {
+			if ( preg_match( '/^--(no-)?(' . implode( '|', self::GLOBAL_FLAGS ) . ')(=|$)/', $token ) ) {
 				continue;
 			}
 			if ( $skip > 0 && !str_starts_with( $token, '--' ) ) {
