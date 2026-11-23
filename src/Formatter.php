@@ -42,6 +42,9 @@ class Formatter {
 				echo self::yaml( $rows );
 				break;
 			case 'ids':
+				if ( !$fields ) {
+					Runner::error( 'There is no field to print.' );
+				}
 				echo implode( ' ', array_map( [ self::class, 'scalar' ], array_column( $rows, $fields[0] ) ) ), "\n";
 				break;
 			case 'count':
