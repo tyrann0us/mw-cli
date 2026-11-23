@@ -44,16 +44,18 @@ Feature: Search and replace text in many pages
       Change 1 page, 1 replacement? [y/n]
       """
     When I run "echo y | mw search-replace '/world/' 'there' --summary="
-    Then STDOUT should contain:
+    Then STDOUT should be like:
       """
-      Success: Saved 'Foo' as revision
-      """
-    And STDOUT should contain:
-      """
-      (1 replacement).
+      Success: Saved 'Foo' as revision {id} (1 replacement).
       Success: Changed 1 page.
       """
-    When I run "mw maint sql --query='SELECT actor_name, comment_text, rev_minor_edit FROM revision JOIN actor ON rev_actor = actor_id JOIN comment ON rev_comment_id = comment_id WHERE rev_id = (SELECT MAX(rev_id) FROM revision)'"
+    Given a file "/tmp/q.sql" with:
+      """
+      SELECT actor_name, comment_text, rev_minor_edit FROM revision
+      JOIN actor ON rev_actor = actor_id JOIN comment ON rev_comment_id = comment_id JOIN page ON rev_page = page_id
+      WHERE page_namespace = 0 AND page_title = 'Foo' ORDER BY rev_id DESC LIMIT 1;
+      """
+    When I run "mw maint sql /tmp/q.sql"
     Then STDOUT should contain:
       """
           [actor_name] => Maintenance script
@@ -75,16 +77,18 @@ Feature: Search and replace text in many pages
     When I run "echo 'a [[Category:Fruit]]' | mw page put Apple && echo 'a [[Category:Fruit]]' | mw page put Help:Apple"
     And I run "echo 'a' | mw page put Help:Banana"
     And I run "mw --user=Admin search-replace '/a /' 'b ' --category=Category:Fruit --namespace=Help --summary=Fruit --minor --yes"
-    Then STDOUT should contain:
+    Then STDOUT should be like:
       """
-      Success: Saved 'Help:Apple' as revision
-      """
-    And STDOUT should contain:
-      """
-      (1 replacement).
+      Success: Saved 'Help:Apple' as revision {id} (1 replacement).
       Success: Changed 1 page.
       """
-    When I run "mw maint sql --query='SELECT actor_name, comment_text, rev_minor_edit FROM revision JOIN actor ON rev_actor = actor_id JOIN comment ON rev_comment_id = comment_id WHERE rev_id = (SELECT MAX(rev_id) FROM revision)'"
+    Given a file "/tmp/q.sql" with:
+      """
+      SELECT actor_name, comment_text, rev_minor_edit FROM revision
+      JOIN actor ON rev_actor = actor_id JOIN comment ON rev_comment_id = comment_id JOIN page ON rev_page = page_id
+      WHERE page_namespace = 12 AND page_title = 'Apple' ORDER BY rev_id DESC LIMIT 1;
+      """
+    When I run "mw maint sql /tmp/q.sql"
     Then STDOUT should contain:
       """
           [actor_name] => Admin
@@ -150,23 +154,24 @@ Feature: Search and replace text in many pages
       """
       Error: The replacement would make 'MediaWiki:Foo.json' invalid json content.
       """
-    When I run "mw page get Foo"
-    Then STDOUT should be:
+    Given a file "/tmp/q.sql" with:
       """
-      aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!b
+      SELECT COUNT(*) AS n FROM revision JOIN page ON rev_page = page_id
+      WHERE (page_namespace = 0 AND page_title IN ('Foo', 'Main_Page')) OR (page_namespace = 8 AND page_title = 'Foo.json');
+      """
+    When I run "mw maint sql /tmp/q.sql"
+    Then STDOUT should contain:
+      """
+          [n] => 3
       """
 
   Scenario: Pages edited after they were read are skipped
     When I run "echo a | mw page put Foo && echo a | mw page put Bar"
     And I try "rm -f /tmp/err; (until grep -q 'y/n' /tmp/err 2>/dev/null; do sleep 0.2; done; echo b | mw page put Bar >/dev/null; echo y) | mw search-replace '/^a$/' 'c' 2>/tmp/err; rc=$?; cat /tmp/err >&2; rm /tmp/err; exit $rc"
     Then the return code should be 1
-    Then STDOUT should contain:
+    And STDOUT should be like:
       """
-      Success: Saved 'Foo' as revision
-      """
-    And STDOUT should contain:
-      """
-      (1 replacement).
+      Success: Saved 'Foo' as revision {id} (1 replacement).
       """
     And STDERR should contain:
       """
