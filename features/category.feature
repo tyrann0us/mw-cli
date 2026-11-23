@@ -33,7 +33,7 @@ Feature: List category members and the categories of pages
       4	Category:Citrus	14	subcat
       5	File:Pear	6	file
       """
-    When I run "mw category members category:fruit --format=count"
+    When I run "mw category members :category:fruit --format=count"
     Then STDOUT should be:
       """
       4

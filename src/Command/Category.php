@@ -123,10 +123,12 @@ class Category extends Command {
 	 */
 	private function categoryTitle( string $name ): Title {
 		$factory = $this->services()->getTitleFactory();
-		$title = $factory->newFromText( $name, NS_CATEGORY );
+		// A leading colon, as in [[:Category:Foo]], is allowed.
+		$text = ltrim( $name, ':' );
+		$title = $factory->newFromText( $text, NS_CATEGORY );
 		if ( $title && $title->getNamespace() !== NS_CATEGORY ) {
 			// "Help:Foo" names the category Category:Help:Foo, not the help page.
-			$title = $factory->makeTitleSafe( NS_CATEGORY, $name );
+			$title = $factory->makeTitleSafe( NS_CATEGORY, $text );
 		}
 		return $title ?? Runner::error( "Invalid category name: $name." );
 	}
