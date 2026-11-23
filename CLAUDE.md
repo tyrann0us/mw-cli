@@ -58,7 +58,7 @@ MediaWiki-specific commands:
 - `parse`: wikitext to HTML.
 - `maint <script> [args]`: passthrough to `maintenance/run.php`, which covers the job queue, rebuilds and imports.
 
-`mw search-replace <regex> <replacement>` is scoped with `--category=` or `--namespace=`, and searches the content namespaces without either. It reads and checks every page before the first save, and skips with a warning any page edited in between (`PageUpdater::hasEditConflict()`). `--dry-run` prints a unified diff per page (MediaWiki's `Wikimedia\Diff\UnifiedDiffFormatter`) without saving.
+`mw search-replace <regex> <replacement>` is scoped with `--category=` or `--namespace=`, and searches the content namespaces without either. It reads and checks every page before the first save. A page edited in between is skipped with a warning (`PageUpdater::hasEditConflict()`). `--dry-run` prints a unified diff per page (MediaWiki's `Wikimedia\Diff\UnifiedDiffFormatter`) without saving.
 
 ## Tests
 
