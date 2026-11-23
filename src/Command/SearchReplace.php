@@ -22,11 +22,11 @@ class SearchReplace extends Command {
 	/**
 	 * Replaces text in many pages with a regular expression.
 	 *
-	 * Without --category or --namespace, all pages in the wiki's content namespaces
-	 * ($wgContentNamespaces, usually just the main namespace) are searched. With both,
-	 * only category members in that namespace. Pages are read and checked before anything
-	 * is saved. Pages that were edited after
-	 * they were read, or fail to save, are skipped with a warning, and the command then exits with 1.
+	 * Without --category or --namespace, it searches the content namespaces
+	 * ($wgContentNamespaces, usually only the main namespace). With both, it searches the
+	 * category's members in that namespace. Every page is read and checked before the first
+	 * save. A page that was edited in the meantime, or that fails to save, is skipped with a
+	 * warning, and the command exits with 1 at the end.
 	 *
 	 * ## OPTIONS
 	 *
@@ -46,7 +46,7 @@ class SearchReplace extends Command {
 	 * : Print a unified diff for each page that would change, but save nothing.
 	 *
 	 * [--summary=<summary>]
-	 * : Edit summary. Default (also when empty): "Replace <regex> with "<replacement>" (mw search-replace)".
+	 * : Edit summary. If left out or empty: "Replace <regex> with "<replacement>" (mw search-replace)".
 	 *
 	 * [--minor]
 	 * : Mark the edits as minor.
