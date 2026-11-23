@@ -43,6 +43,11 @@ Feature: Run Semantic MediaWiki queries
       """
       2
       """
+    When I run "mw ask '[[Category:Building]]|format=count|offset=1' --limit=5 --format=ids"
+    Then STDOUT should be:
+      """
+      Town Hall
+      """
 
   @smw
   Scenario: Ask rejects invalid queries and limits

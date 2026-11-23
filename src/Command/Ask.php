@@ -7,7 +7,6 @@ use MwCli\Formatter;
 use MwCli\Runner;
 use SMW\ProcessingErrorMsgHandler;
 use SMW\Query\PrintRequest;
-use SMW\Query\Query;
 use SMW\Query\QueryProcessor;
 use SMW\Services\ServicesFactory;
 
@@ -53,6 +52,8 @@ class Ask extends Command {
 		}
 		// Split on | outside [[ ]], so [[A::x||y]] stays one condition.
 		$params = preg_split( '/\|(?![^\[\]]*\]\])/', $args[0] ) ?: [];
+		// Output goes through --format. format=count or format=debug would change the query mode and limit.
+		$params = preg_grep( '/^\s*format\s*=/i', $params, PREG_GREP_INVERT ) ?: [];
 		if ( isset( $assoc_args['limit'] ) ) {
 			if ( !is_string( $assoc_args['limit'] ) || !ctype_digit( $assoc_args['limit'] ) ) {
 				Runner::error( '--limit must be a number.' );
@@ -62,8 +63,6 @@ class Ask extends Command {
 		[ $query ] = QueryProcessor::getQueryAndParamsFromFunctionParams(
 			$params, SMW_OUTPUT_WIKI, QueryProcessor::SPECIAL_PAGE, false
 		);
-		// Rows, even if the query asks for format=count or format=debug.
-		$query->setQueryMode( Query::MODE_INSTANCES );
 		// The store adds errors too, e.g. for unknown properties, and then returns no rows.
 		$result = ServicesFactory::getInstance()->getStore()->getQueryResult( $query );
 		$errors = ProcessingErrorMsgHandler::normalizeAndDecodeMessages( $result->getErrors() );
