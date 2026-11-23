@@ -55,17 +55,7 @@ class Category extends Command {
 		if ( $type !== null && !in_array( $type, $types, true ) ) {
 			Runner::error( 'Invalid type. Use one of: ' . implode( ', ', $types ) . '.' );
 		}
-		$ns = null;
-		if ( isset( $assoc_args['namespace'] ) ) {
-			$name = $assoc_args['namespace'];
-			// A bare --namespace (true) falls through to the name lookup and fails there.
-			$ns = is_string( $name ) && ctype_digit( $name )
-				? (int)$name
-				: $this->services()->getContentLanguage()->getNsIndex( strtr( (string)$name, ' ', '_' ) );
-			if ( $ns === false || !$this->services()->getNamespaceInfo()->exists( $ns ) ) {
-				Runner::error( "Unknown namespace: $name." );
-			}
-		}
+		$ns = isset( $assoc_args['namespace'] ) ? $this->namespace( $assoc_args['namespace'] ) : null;
 
 		$rows = [];
 		foreach ( MwCategory::newFromTitle( $this->categoryTitle( $args[0] ) )->getMembers() as $title ) {
