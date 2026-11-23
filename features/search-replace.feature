@@ -131,7 +131,7 @@ Feature: Search and replace text in many pages
     When I try "mw search-replace '/a/' x --namespace="
     Then STDERR should contain:
       """
-      Error: Unknown namespace ''.
+      Error: --namespace needs a value.
       """
     When I try "mw search-replace '/a/' x --category=Help:Fruit"
     Then STDERR should contain:
