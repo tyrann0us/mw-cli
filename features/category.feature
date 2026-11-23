@@ -51,6 +51,11 @@ Feature: List category members and the categories of pages
       title,id
       File:Pear,
       """
+    When I run "mw category members Fruit --namespace='Category talk' --format=count"
+    Then STDOUT should be:
+      """
+      0
+      """
     When I run "mw category members Fruit --namespace=0 --type=page --format=ids"
     Then STDOUT should be:
       """
@@ -83,6 +88,12 @@ Feature: List category members and the categories of pages
     And STDERR should contain:
       """
       Error: Unknown namespace: Nope.
+      """
+    When I try "mw category members Fruit --namespace=9999"
+    Then the return code should be 1
+    And STDERR should contain:
+      """
+      Error: Unknown namespace: 9999.
       """
     When I try "mw category members '<'"
     Then the return code should be 1

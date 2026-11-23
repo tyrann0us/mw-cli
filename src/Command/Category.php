@@ -18,7 +18,7 @@ class Category extends Command {
 	 * Lists the pages, subcategories and files in a category.
 	 *
 	 * The namespace prefix is optional and can be in the wiki's language. Members are
-	 * sorted by their sort key, like on the category page.
+	 * sorted by their sort key, whatever their type.
 	 *
 	 * ## OPTIONS
 	 *
@@ -51,15 +51,19 @@ class Category extends Command {
 	 */
 	public function members( array $args, array $assoc_args ): void {
 		$type = $assoc_args['type'] ?? null;
-		if ( $type !== null && !in_array( $type, [ 'page', 'subcat', 'file' ], true ) ) {
-			Runner::error( 'Invalid type. Use one of: page, subcat, file.' );
+		$types = [ 'page', ...self::TYPES ];
+		if ( $type !== null && !in_array( $type, $types, true ) ) {
+			Runner::error( 'Invalid type. Use one of: ' . implode( ', ', $types ) . '.' );
 		}
 		$ns = null;
 		if ( isset( $assoc_args['namespace'] ) ) {
-			$ns = (string)$assoc_args['namespace'];
-			$ns = ctype_digit( $ns ) ? (int)$ns : $this->services()->getContentLanguage()->getNsIndex( $ns );
-			if ( $ns === false ) {
-				Runner::error( "Unknown namespace: {$assoc_args['namespace']}." );
+			$name = $assoc_args['namespace'];
+			// A bare --namespace (true) falls through to the name lookup and fails there.
+			$ns = is_string( $name ) && ctype_digit( $name )
+				? (int)$name
+				: $this->services()->getContentLanguage()->getNsIndex( strtr( (string)$name, ' ', '_' ) );
+			if ( $ns === false || !$this->services()->getNamespaceInfo()->exists( $ns ) ) {
+				Runner::error( "Unknown namespace: $name." );
 			}
 		}
 
@@ -104,20 +108,14 @@ class Category extends Command {
 	 * @param array<string,string|bool> $assoc_args
 	 */
 	public function of( array $args, array $assoc_args ): void {
-		$pages = [];
+		$rows = [];
 		foreach ( $args as $name ) {
-			$title = $this->services()->getTitleFactory()->newFromText( $name );
-			if ( !$title?->exists() ) {
+			$page = $this->services()->getTitleFactory()->newFromText( $name );
+			if ( !$page?->exists() ) {
 				Runner::error( "Page not found: $name." );
 			}
-			$pages[] = $title;
-		}
-
-		$rows = [];
-		$factory = $this->services()->getWikiPageFactory();
-		foreach ( $pages as $page ) {
 			$categories = [];
-			foreach ( $factory->newFromTitle( $page )->getCategories() as $category ) {
+			foreach ( $this->services()->getWikiPageFactory()->newFromTitle( $page )->getCategories() as $category ) {
 				$categories[] = $category->getPrefixedText();
 			}
 			sort( $categories );
