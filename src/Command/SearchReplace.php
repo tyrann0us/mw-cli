@@ -14,6 +14,7 @@ use MwCli\Runner;
 use StatusValue;
 use Wikimedia\Diff\Diff;
 use Wikimedia\Diff\UnifiedDiffFormatter;
+use Wikimedia\Rdbms\IDBAccessObject;
 
 /**
  * Replaces text in many pages with a regular expression.
@@ -74,14 +75,16 @@ class SearchReplace extends Command {
 			restore_error_handler();
 		}
 		$pages = $this->pages( $assoc_args );
-		$performer = $this->performer();
+		// Null for a dry run, which shouldn't create the maintenance user.
+		$performer = empty( $assoc_args['dry-run'] ) ? $this->performer() : null;
 
 		$factory = $this->services()->getWikiPageFactory();
-		$dryRun = !empty( $assoc_args['dry-run'] );
 		$changes = [];
 		$total = 0;
 		foreach ( $pages as $page ) {
 			$wikiPage = $factory->newFromTitle( $page );
+			// From the primary, like the edit conflict check below.
+			$wikiPage->loadPageData( IDBAccessObject::READ_LATEST );
 			$name = $wikiPage->getTitle()->getPrefixedText();
 			$content = $wikiPage->getContent( RevisionRecord::RAW );
 			$old = $content?->serialize() ?? '';
@@ -96,7 +99,7 @@ class SearchReplace extends Command {
 			}
 			$changes[] = [ $page, $name, $wikiPage->getLatest(), $newContent, $count ];
 			$total += $count;
-			if ( $dryRun ) {
+			if ( $performer === null ) {
 				$diff = new Diff( explode( "\n", $old ), explode( "\n", $new ) );
 				Runner::line( "--- $name\n+++ $name\n" . rtrim( ( new UnifiedDiffFormatter() )->format( $diff ), "\n" ) );
 			}
@@ -107,7 +110,7 @@ class SearchReplace extends Command {
 			return;
 		}
 		$summary = self::plural( count( $changes ), 'page' ) . ', ' . self::plural( $total, 'replacement' );
-		if ( $dryRun ) {
+		if ( $performer === null ) {
 			Runner::success( "Would change $summary." );
 			return;
 		}
