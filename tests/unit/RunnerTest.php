@@ -43,6 +43,12 @@ class RunnerTest extends TestCase {
 		$this->assertSame( [ 'MwCli\Command\Help', '__invoke', [ 'cli' ] ], $cli->resolve( [ 'help', 'cli' ] ) );
 	}
 
+	public function testValidateSkipsHelpAndRejectsBadArgs(): void {
+		( new Runner( [ 'cli', 'version', '--nope', '--help' ], $this->dir, null ) )->validate();
+		$this->expectExceptionMessage( "Unknown parameter: --nope.\nusage: mw cli version" );
+		( new Runner( [ 'cli', 'version', '--nope' ], $this->dir, null ) )->validate();
+	}
+
 	public function testUnknownCommandFails(): void {
 		$this->expectException( ExitException::class );
 		$this->expectExceptionMessage( "'nope' is not a registered mw command" );
@@ -125,6 +131,11 @@ class RunnerTest extends TestCase {
 			escapeshellarg( "'mw' '--user=Bot' '--path=/srv/w' 'maint' 'edit' '--' '--user=Admin'" ),
 			self::ssh( $cli )
 		);
+	}
+
+	public function testPathWithoutWikiFails(): void {
+		$this->expectExceptionMessage( "No MediaWiki installation found in '$this->dir/project'." );
+		( new Runner( [ '--path=project' ], $this->dir, null ) )->wikiPath();
 	}
 
 	public function testTildePathIsExpanded(): void {

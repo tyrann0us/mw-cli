@@ -34,6 +34,12 @@ class Cli extends Command {
 	 * [--format=<format>]
 	 * : table, json or yaml.
 	 *
+	 * [--fields=<fields>]
+	 * : Comma-separated fields to show.
+	 *
+	 * [--field=<field>]
+	 * : Prints only the value of this field.
+	 *
 	 * ## EXAMPLES
 	 *
 	 *     mw cli info --format=json

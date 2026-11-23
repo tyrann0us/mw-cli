@@ -25,9 +25,7 @@ $runner->defineSettings();
 
 if ( !defined( 'MW_FINAL_SETUP_CALLBACK' ) ) {
 	function wfMwCliSetup( SettingsBuilder $settingsBuilder ): void {
-		// phpcs:ignore MediaWiki.NamingConventions.ValidGlobalName.allowedPrefix
-		global $runner;
-		$runner->setup( $settingsBuilder );
+		$GLOBALS['runner']->setup( $settingsBuilder );
 	}
 
 	define( 'MW_FINAL_SETUP_CALLBACK', 'wfMwCliSetup' );

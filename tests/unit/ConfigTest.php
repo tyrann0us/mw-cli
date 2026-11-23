@@ -62,6 +62,13 @@ class ConfigTest extends TestCase {
 		);
 	}
 
+	public function testUnparsableFileFails(): void {
+		file_put_contents( "$this->dir/project/mw.ini", "path = \"unterminated\n" );
+		$this->expectException( ExitException::class );
+		$this->expectExceptionMessage( "Can't parse config file $this->dir/project/mw.ini." );
+		Config::load( "$this->dir/project", null );
+	}
+
 	public function testUnknownAliasFails(): void {
 		$this->expectException( ExitException::class );
 		$this->expectExceptionMessage( "Alias '@nope' not found." );

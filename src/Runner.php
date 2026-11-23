@@ -24,7 +24,6 @@ class Runner {
 	/** @var string[] Config files that were read. */
 	public array $configFiles = [];
 
-	private static bool $quiet = false;
 	private ?string $alias = null;
 	/** @var string[] argv without the alias, for forwarding over SSH. */
 	private array $tokens = [];
@@ -62,7 +61,6 @@ class Runner {
 
 		[ $config, $this->configFiles ] = Config::load( $cwd, $home );
 		$this->global = Config::resolve( $config, $this->alias, $flags );
-		self::$quiet = !empty( $this->global['quiet'] );
 	}
 
 	/**
@@ -296,39 +294,7 @@ class Runner {
 		echo $message, "\n";
 	}
 
-	public static function success( string $message ): void {
-		if ( !self::$quiet ) {
-			echo "Success: $message\n";
-		}
-	}
-
-	public static function warning( string $message ): void {
-		if ( !self::$quiet ) {
-			fwrite( STDERR, "Warning: $message\n" );
-		}
-	}
-
 	public static function error( string $message, int $code = 1 ): never {
 		throw new ExitException( $message, $code );
-	}
-
-	/**
-	 * Asks for a yes/no answer unless --yes was passed. Exits quietly with 0 on anything but "y".
-	 *
-	 * @param string $question
-	 * @param array<string,string|bool> $assoc
-	 */
-	public static function confirm( string $question, array $assoc ): void {
-		if ( !empty( $assoc['yes'] ) ) {
-			return;
-		}
-		echo "$question [y/n] ";
-		$answer = fgets( STDIN );
-		if ( $answer === false ) {
-			self::error( 'No answer on stdin. Pass --yes to run without confirmation.' );
-		}
-		if ( strtolower( trim( $answer ) ) !== 'y' ) {
-			throw new ExitException( '', 0 );
-		}
 	}
 }

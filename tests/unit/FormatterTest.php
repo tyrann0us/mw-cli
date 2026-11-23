@@ -45,6 +45,17 @@ class FormatterTest extends TestCase {
 		Formatter::items( [ [ 'a' => "a\tb\nc\\d" ] ], [], [ 'a' ] );
 	}
 
+	public function testItemJsonAndYaml(): void {
+		$this->expectOutputString( '{"id":1,"title":"Main Page","ns":0}' . "\n---\nid: 1\ntitle: \"Main Page\"\nns: 0\n" );
+		Formatter::item( self::ROWS[0], [ 'format' => 'json' ] );
+		Formatter::item( self::ROWS[0], [ 'format' => 'yaml' ] );
+	}
+
+	public function testScalarsAreStringified(): void {
+		$this->expectOutputString( "a\tb\tc\ntrue\t\t[1,2]\n" );
+		Formatter::items( [ [ 'a' => true, 'b' => null, 'c' => [ 1, 2 ] ] ], [], [ 'a', 'b', 'c' ] );
+	}
+
 	public function testInvalidFieldFails(): void {
 		$this->expectException( ExitException::class );
 		$this->expectExceptionMessage( 'Invalid field: nope.' );

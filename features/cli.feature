@@ -21,12 +21,35 @@ Feature: Run mw, get help and use global flags
       version  Prints the mw version.
       """
 
+  Scenario: Show the mw version and environment
+    When I run "mw cli version"
+    Then STDOUT should be:
+      """
+      mw 0.1.0
+      """
+    When I run "mw cli info --field=mw_cli_dir"
+    Then STDOUT should be:
+      """
+      /mw-cli
+      """
+    When I run "mw cli info"
+    Then STDOUT should contain:
+      """
+      mw_cli_version	0.1.0
+      """
+
   Scenario: Unknown commands and parameters fail
     When I try "mw nope"
     Then the return code should be 1
     And STDERR should contain:
       """
       Error: 'nope' is not a registered mw command. See 'mw help'.
+      """
+    When I try "mw cli nope"
+    Then the return code should be 1
+    And STDERR should contain:
+      """
+      Error: 'nope' is not a registered subcommand of 'cli'. See 'mw help cli'.
       """
     When I try "mw cli version --nope"
     Then the return code should be 1

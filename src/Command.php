@@ -3,7 +3,6 @@
 namespace MwCli;
 
 use MediaWiki\MediaWikiServices;
-use MediaWiki\User\User;
 
 /**
  * Base for classes in src/Command/. The file name is the command name (SearchReplace.php is
@@ -21,24 +20,4 @@ abstract class Command {
 		return MediaWikiServices::getInstance();
 	}
 
-	/**
-	 * The user from --user (name, or ID if no user has that name), or MediaWiki's "Maintenance script" system user.
-	 */
-	protected function performer(): User {
-		$name = $this->cli->flag( 'user' );
-		if ( $name === null ) {
-			// No service replaces this in 1.43, and it isn't deprecated.
-			return User::newSystemUser( User::MAINTENANCE_SCRIPT_USER, [ 'steal' => true ] )
-				?? Runner::error( "Can't create the '" . User::MAINTENANCE_SCRIPT_USER . "' user." );
-		}
-		$factory = $this->services()->getUserFactory();
-		$user = $factory->newFromName( $name );
-		if ( ( $user === null || !$user->isRegistered() ) && ctype_digit( $name ) ) {
-			$user = $factory->newFromId( (int)$name );
-		}
-		if ( $user === null || !$user->isRegistered() ) {
-			Runner::error( "Invalid user '$name'." );
-		}
-		return $user;
-	}
 }
