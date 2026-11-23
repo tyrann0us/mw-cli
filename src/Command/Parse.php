@@ -30,10 +30,12 @@ class Parse extends Command {
 	 * @param array<string,string|bool> $assoc_args
 	 */
 	public function __invoke( array $args, array $assoc_args ): void {
-		$title = $this->services()->getTitleFactory()->newFromText( (string)( $assoc_args['title'] ?? 'API' ) )
+		// A bare --title is true, which no title matches.
+		$name = $assoc_args['title'] ?? 'API';
+		$title = $this->services()->getTitleFactory()->newFromText( is_string( $name ) ? $name : '' )
 			?? Runner::error( 'Invalid title.' );
 		$file = $args[0] ?? null;
-		if ( $file !== null && !is_file( $file ) ) {
+		if ( $file !== null && ( !is_file( $file ) || !is_readable( $file ) ) ) {
 			Runner::error( "Can't read '$file'." );
 		}
 		$text = (string)file_get_contents( $file ?? 'php://stdin' );

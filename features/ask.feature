@@ -28,6 +28,11 @@ Feature: Run Semantic MediaWiki queries
       """
       Town Hall
       """
+    When I run "mw ask '[[Category:Building]]|format=debug' --format=count"
+    Then STDOUT should be:
+      """
+      2
+      """
 
   @smw
   Scenario: Ask rejects invalid queries and limits
@@ -38,6 +43,12 @@ Feature: Run Semantic MediaWiki queries
       Error: The part "" of the query was not understood.
       """
     When I try "mw ask '[[Category:Building]]' --limit=ten"
+    Then the return code should be 1
+    And STDERR should contain:
+      """
+      Error: --limit must be a number.
+      """
+    When I try "mw ask '[[Category:Building]]' --limit"
     Then the return code should be 1
     And STDERR should contain:
       """

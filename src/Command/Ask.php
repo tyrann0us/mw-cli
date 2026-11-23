@@ -2,11 +2,11 @@
 
 namespace MwCli\Command;
 
-use MediaWiki\Registration\ExtensionRegistry;
 use MwCli\Command;
 use MwCli\Formatter;
 use MwCli\Runner;
 use SMW\ProcessingErrorMsgHandler;
+use SMW\Query\Query;
 use SMW\Query\QueryProcessor;
 use SMW\Services\ServicesFactory;
 
@@ -47,12 +47,12 @@ class Ask extends Command {
 	 * @param array<string,string|bool> $assoc_args
 	 */
 	public function __invoke( array $args, array $assoc_args ): void {
-		if ( !ExtensionRegistry::getInstance()->isLoaded( 'SemanticMediaWiki' ) ) {
+		if ( !$this->services()->getExtensionRegistry()->isLoaded( 'SemanticMediaWiki' ) ) {
 			Runner::error( 'Semantic MediaWiki is not installed on this wiki.' );
 		}
 		$params = explode( '|', $args[0] );
 		if ( isset( $assoc_args['limit'] ) ) {
-			if ( !ctype_digit( (string)$assoc_args['limit'] ) ) {
+			if ( !is_string( $assoc_args['limit'] ) || !ctype_digit( $assoc_args['limit'] ) ) {
 				Runner::error( '--limit must be a number.' );
 			}
 			$params[] = 'limit=' . $assoc_args['limit'];
@@ -60,11 +60,14 @@ class Ask extends Command {
 		[ $query ] = QueryProcessor::getQueryAndParamsFromFunctionParams(
 			$params, SMW_OUTPUT_WIKI, QueryProcessor::SPECIAL_PAGE, false
 		);
-		$errors = ProcessingErrorMsgHandler::normalizeAndDecodeMessages( $query->getErrors() );
+		// Rows, even if the query asks for format=count or format=debug.
+		$query->setQueryMode( Query::MODE_INSTANCES );
+		// The store adds errors too, e.g. for unknown properties, and then returns no rows.
+		$result = ServicesFactory::getInstance()->getStore()->getQueryResult( $query );
+		$errors = ProcessingErrorMsgHandler::normalizeAndDecodeMessages( $result->getErrors() );
 		if ( $errors ) {
 			Runner::error( implode( ' ', $errors ) );
 		}
-		$result = ServicesFactory::getInstance()->getStore()->getQueryResult( $query );
 		$rows = [];
 		for ( $columns = $result->getNext(); $columns; $columns = $result->getNext() ) {
 			$row = [];
