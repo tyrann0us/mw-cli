@@ -109,21 +109,46 @@ Feature: Read, edit and manage pages
       """
     Given a file "/tmp/q.sql" with:
       """
-      SELECT actor_name, actor_user FROM revision
+      SELECT actor_user FROM revision
       JOIN actor ON rev_actor = actor_id JOIN page ON rev_page = page_id
       WHERE page_namespace = 0 AND page_title = 'Foo' ORDER BY rev_id;
+      """
+    When I run "mw maint sql /tmp/q.sql"
+    Then STDOUT should be like:
+      """
+      stdClass Object
+      (
+          [actor_user] => {id}
+      )
+      stdClass Object
+      (
+          [actor_user] => 1
+      )
+      stdClass Object
+      (
+          [actor_user] => {id}
+      )
+      """
+    Given a file "/tmp/q.sql" with:
+      """
+      SELECT actor_name FROM revision
+      JOIN actor ON rev_actor = actor_id JOIN page ON rev_page = page_id
+      WHERE page_namespace = 0 AND page_title = 'Foo' ORDER BY rev_id LIMIT 1;
       """
     When I run "mw maint sql /tmp/q.sql"
     Then STDOUT should contain:
       """
           [actor_name] => Admin
       """
-    And STDOUT should contain:
+    Given a file "/tmp/q.sql" with:
       """
-          [actor_user] => 1
-      )
-      stdClass Object
-      (
+      SELECT actor_name FROM revision
+      JOIN actor ON rev_actor = actor_id JOIN page ON rev_page = page_id
+      WHERE page_namespace = 0 AND page_title = 'Foo' ORDER BY rev_id DESC LIMIT 1;
+      """
+    When I run "mw maint sql /tmp/q.sql"
+    Then STDOUT should contain:
+      """
           [actor_name] => Maintenance script
       """
     When I try "echo x | mw --user=Nobody page put Foo"
