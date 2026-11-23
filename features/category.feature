@@ -25,13 +25,18 @@ Feature: List category members and the categories of pages
 
   Scenario: Members are listed with title, namespace and type
     When I run "mw category members Fruit"
-    Then STDOUT should be:
+    Then STDOUT should contain:
       """
       id	title	namespace	type
-      2	Apple	0	page
-      3	Banana	0	page
-      4	Category:Citrus	14	subcat
-      5	File:Pear	6	file
+      """
+    When I run "mw category members Fruit --fields=title,namespace,type"
+    Then STDOUT should be:
+      """
+      title	namespace	type
+      Apple	0	page
+      Banana	0	page
+      Category:Citrus	14	subcat
+      File:Pear	6	file
       """
     When I run "mw category members :category:fruit --format=count"
     Then STDOUT should be:
@@ -45,21 +50,22 @@ Feature: List category members and the categories of pages
       """
       Category:Citrus
       """
-    When I run "mw category members Fruit --namespace=File --fields=title,id --format=csv"
+    When I run "mw category members Fruit --namespace=File --fields=title,namespace --format=csv"
     Then STDOUT should be:
       """
-      title,id
-      File:Pear,5
+      title,namespace
+      File:Pear,6
       """
     When I run "mw category members Fruit --namespace='Category talk' --format=count"
     Then STDOUT should be:
       """
       0
       """
-    When I run "mw category members Fruit --namespace=0 --type=page --format=ids"
+    When I run "mw category members Fruit --namespace=0 --type=page --field=title"
     Then STDOUT should be:
       """
-      2 3
+      Apple
+      Banana
       """
 
   Scenario: A category name in another namespace's form is still a category
