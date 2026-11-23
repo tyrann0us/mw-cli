@@ -47,13 +47,16 @@ class Ask extends Command {
 	 * @param array<string,string|bool> $assoc_args
 	 */
 	public function __invoke( array $args, array $assoc_args ): void {
-		if ( !$this->services()->getExtensionRegistry()->isLoaded( 'SemanticMediaWiki' ) ) {
-			Runner::error( 'Semantic MediaWiki is not installed on this wiki.' );
+		// SMW\Query\QueryProcessor is new in SMW 7.
+		if ( !$this->services()->getExtensionRegistry()->isLoaded( 'SemanticMediaWiki' )
+			|| !class_exists( QueryProcessor::class )
+		) {
+			Runner::error( 'mw ask needs Semantic MediaWiki 7 or later.' );
 		}
 		// Split on single | outside [[ ]]; || is OR, as in [[A::x||y]] or [[A::x]] || [[B::y]].
-		$params = preg_split( '/(?<!\|)\|(?!\|)(?![^\[\]]*\]\])/', $args[0] ) ?: [];
+		$params = array_map( 'trim', preg_split( '/(?<!\|)\|(?!\|)(?![^\[\]]*\]\])/', $args[0] ) ?: [] );
 		// Output goes through --format. format=count or format=debug would change the query mode and limit.
-		$params = preg_grep( '/^\s*format\s*=/i', $params, PREG_GREP_INVERT ) ?: [];
+		$params = preg_grep( '/^format\s*=/i', $params, PREG_GREP_INVERT ) ?: [];
 		if ( isset( $assoc_args['limit'] ) ) {
 			if ( !is_string( $assoc_args['limit'] ) || !ctype_digit( $assoc_args['limit'] ) ) {
 				Runner::error( '--limit must be a number.' );

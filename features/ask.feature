@@ -11,7 +11,7 @@ Feature: Run Semantic MediaWiki queries
       [[Category:Building]] [[Street::Side Street]] [[Street::Corner]]
       """
     When I run "mw maint importTextFiles /tmp/pages/Town_Hall /tmp/pages/Library"
-    And I run "mw ask '[[Category:Building]]|?Floors|?Street'"
+    And I run "mw ask '[[Category:Building]] | ?Floors | ?Street'"
     Then STDOUT should be:
       """
       title	Floors	Street
@@ -81,5 +81,5 @@ Feature: Run Semantic MediaWiki queries
     Then the return code should be 1
     And STDERR should contain:
       """
-      Error: Semantic MediaWiki is not installed on this wiki.
+      Error: mw ask needs Semantic MediaWiki 7 or later.
       """
