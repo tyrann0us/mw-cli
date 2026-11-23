@@ -43,7 +43,7 @@ Feature: Search and replace text in many pages
       """
       Change 1 page, 1 replacement? [y/n]
       """
-    When I run "echo y | mw search-replace '/world/' 'there'"
+    When I run "echo y | mw search-replace '/world/' 'there' --summary="
     Then STDOUT should be:
       """
       Success: Saved 'Foo' as revision 4 (1 replacement).

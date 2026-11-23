@@ -47,7 +47,7 @@ class SearchReplace extends Command {
 	 * : Print a unified diff for each page that would change, but save nothing.
 	 *
 	 * [--summary=<summary>]
-	 * : Edit summary. Default: "Replace <regex> with "<replacement>" (mw search-replace)".
+	 * : Edit summary. Default (also when empty): "Replace <regex> with "<replacement>" (mw search-replace)".
 	 *
 	 * [--minor]
 	 * : Mark the edits as minor.
@@ -75,8 +75,9 @@ class SearchReplace extends Command {
 			restore_error_handler();
 		}
 		$pages = $this->pages( $assoc_args );
-		// Null for a dry run, which shouldn't create the maintenance user.
-		$performer = empty( $assoc_args['dry-run'] ) ? $this->performer() : null;
+		$dryRun = !empty( $assoc_args['dry-run'] );
+		// A dry run shouldn't create the maintenance user.
+		$performer = $dryRun ? null : $this->performer();
 
 		$factory = $this->services()->getWikiPageFactory();
 		$changes = [];
@@ -99,7 +100,7 @@ class SearchReplace extends Command {
 			}
 			$changes[] = [ $page, $name, $wikiPage->getLatest(), $newContent, $count ];
 			$total += $count;
-			if ( $performer === null ) {
+			if ( $dryRun ) {
 				$diff = new Diff( explode( "\n", $old ), explode( "\n", $new ) );
 				Runner::line( "--- $name\n+++ $name\n" . rtrim( ( new UnifiedDiffFormatter() )->format( $diff ), "\n" ) );
 			}
@@ -110,14 +111,14 @@ class SearchReplace extends Command {
 			return;
 		}
 		$summary = self::plural( count( $changes ), 'page' ) . ', ' . self::plural( $total, 'replacement' );
-		if ( $performer === null ) {
+		if ( $dryRun || $performer === null ) {
 			Runner::success( "Would change $summary." );
 			return;
 		}
 		Runner::confirm( "Change $summary?", $assoc_args );
 
 		$comment = CommentStoreComment::newUnsavedComment( (string)(
-			$assoc_args['summary'] ?? "Replace $regex with \"$replacement\" (mw search-replace)"
+			( $assoc_args['summary'] ?? '' ) ?: "Replace $regex with \"$replacement\" (mw search-replace)"
 		) );
 		$flags = EDIT_UPDATE | ( !empty( $assoc_args['minor'] ) ? EDIT_MINOR : 0 );
 		$statusFormatter = $this->services()->getFormatterFactory()->getStatusFormatter( RequestContext::getMain() );
@@ -175,7 +176,7 @@ class SearchReplace extends Command {
 				Runner::error( "Invalid category '$name'." );
 			}
 			$members = iterator_to_array( Category::newFromTitle( $title )->getMembers(), false );
-			return array_filter( $members, static fn ( $title ) => $namespace === null || $title->inNamespace( $namespace ) );
+			return array_filter( $members, static fn ( $member ) => $namespace === null || $member->inNamespace( $namespace ) );
 		}
 		$namespaces = $namespace ?? $this->services()->getMainConfig()->get( MainConfigNames::ContentNamespaces );
 		$db = $this->services()->getConnectionProvider()->getReplicaDatabase();
