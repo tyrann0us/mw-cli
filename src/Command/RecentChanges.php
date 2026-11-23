@@ -56,7 +56,8 @@ class RecentChanges extends Command {
 		if ( !is_string( $limit ) || !ctype_digit( $limit ) || (int)$limit < 1 ) {
 			Runner::error( '--limit must be a positive number.' );
 		}
-		$query = $this->services()->getConnectionProvider()->getReplicaDatabase()->newSelectQueryBuilder()
+		$dbr = $this->services()->getConnectionProvider()->getReplicaDatabase();
+		$query = $dbr->newSelectQueryBuilder()
 			->select( [
 				'rc_id', 'rc_timestamp', 'rc_source', 'rc_namespace', 'rc_title', 'rc_this_oldid',
 				'rc_log_type', 'rc_log_action', 'rc_deleted', 'actor_name', 'comment_text',
@@ -71,9 +72,16 @@ class RecentChanges extends Command {
 			$query->andWhere( [ 'rc_namespace' => $this->namespace( $assoc_args['namespace'] ) ] );
 		}
 		if ( isset( $assoc_args['by'] ) ) {
-			$by = (string)$assoc_args['by'];
+			$by = $assoc_args['by'];
+			if ( !is_string( $by ) || $by === '' ) {
+				Runner::error( '--by needs a value.' );
+			}
 			$name = $this->services()->getUserNameUtils()->getCanonical( $by, UserNameUtils::RIGOR_NONE ) ?: $by;
-			$query->andWhere( [ 'actor_name' => $name ] );
+			// Like MediaWiki's own lists, don't reveal who made changes whose user is hidden.
+			$query->andWhere( [
+				'actor_name' => $name,
+				$dbr->bitAnd( 'rc_deleted', RevisionRecord::DELETED_USER ) . ' = 0',
+			] );
 		}
 		if ( isset( $assoc_args['type'] ) ) {
 			if ( !in_array( $assoc_args['type'], self::TYPES, true ) ) {
@@ -88,19 +96,23 @@ class RecentChanges extends Command {
 		$res = $query->fetchResultSet();
 		while ( $row = $res->fetchObject() ) {
 			$hidden = (int)$row->rc_deleted;
+			// On log entries, bit 1 (LogPage::DELETED_ACTION) hides the target and action.
+			$hideAction = $row->rc_log_type !== null && $hidden & 1;
 			$rows[] = [
 				'id' => (int)$row->rc_id,
 				// PHP reads YmdHis (MySQL, SQLite) and PostgreSQL timestamps alike.
 				'timestamp' => ( new DateTimeImmutable( $row->rc_timestamp, $utc ) )->format( 'Y-m-d\TH:i:s\Z' ),
 				// mw.edit, mw.new, mw.log, mw.categorize, or an extension's own source.
 				'type' => preg_replace( '/^mw\./', '', $row->rc_source ),
-				'title' => $formatter->formatTitle( (int)$row->rc_namespace, $row->rc_title ),
-				'namespace' => (int)$row->rc_namespace,
 				// Hidden by revision deletion or suppression.
+				'title' => $hideAction ? null : $formatter->formatTitle( (int)$row->rc_namespace, $row->rc_title ),
+				'namespace' => $hideAction ? null : (int)$row->rc_namespace,
 				'user' => $hidden & RevisionRecord::DELETED_USER ? null : $row->actor_name,
 				'comment' => $hidden & RevisionRecord::DELETED_COMMENT ? null : $row->comment_text,
 				'revision' => (int)$row->rc_this_oldid ?: null,
-				'action' => $row->rc_log_type === null ? null : $row->rc_log_type . '/' . $row->rc_log_action,
+				'action' => $row->rc_log_type === null || $hideAction
+					? null
+					: $row->rc_log_type . '/' . $row->rc_log_action,
 			];
 		}
 		Formatter::items( $rows, $assoc_args, [ 'id', 'timestamp', 'type', 'title', 'user', 'comment' ] );

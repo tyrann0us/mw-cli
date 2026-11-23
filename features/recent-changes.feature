@@ -58,12 +58,18 @@ Feature: List recent changes
       Help:Intro
       """
 
-  Scenario: Hidden user names and edit summaries stay hidden
+  Scenario: Hidden user names, edit summaries and log actions stay hidden
     When I run "mw maint sql --query='UPDATE /*_*/recentchanges SET rc_deleted = 6 WHERE rc_this_oldid = 3'"
-    And I run "mw recent-changes --type=edit --format=json --fields=title,user,comment"
+    And I run "mw maint sql --query='UPDATE /*_*/recentchanges SET rc_deleted = 1 WHERE rc_log_type IS NOT NULL'"
+    And I run "mw recent-changes --limit=3 --format=json --fields=type,title,namespace,action,user,comment"
     Then STDOUT should be:
       """
-      [{"title":"Sandbox","user":null,"comment":null}]
+      [{"type":"log","title":null,"namespace":null,"action":null,"user":"Maintenance script","comment":"Vandalism"},{"type":"new","title":"Help:Intro","namespace":12,"action":null,"user":"Admin","comment":""},{"type":"edit","title":"Sandbox","namespace":0,"action":null,"user":null,"comment":null}]
+      """
+    When I run "mw recent-changes --by=Admin --field=title"
+    Then STDOUT should be:
+      """
+      Help:Intro
       """
 
   Scenario: Bad filters fail
@@ -78,4 +84,9 @@ Feature: List recent changes
     And STDERR should contain:
       """
       Error: --limit must be a positive number.
+      """
+    When I try "mw recent-changes --by"
+    Then STDERR should contain:
+      """
+      Error: --by needs a value.
       """

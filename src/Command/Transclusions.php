@@ -8,6 +8,7 @@ namespace MwCli\Command;
 class Transclusions extends Backlinks {
 	protected const TABLE = 'templatelinks';
 	protected const FROM = 'tl_from';
+	protected const DEFAULT_NAMESPACE = NS_TEMPLATE;
 
 	/**
 	 * Lists pages that transclude a page, usually a template.
@@ -15,7 +16,7 @@ class Transclusions extends Backlinks {
 	 * ## OPTIONS
 	 *
 	 * <title>
-	 * : The transcluded page, with its namespace (Template:Infobox).
+	 * : The transcluded page. Without a namespace it's a template (Infobox is Template:Infobox).
 	 *
 	 * [--namespace=<ns>]
 	 * : Only list pages in this namespace: a number (0 for main) or a name.
@@ -31,7 +32,7 @@ class Transclusions extends Backlinks {
 	 *
 	 * ## EXAMPLES
 	 *
-	 *     mw transclusions Template:Infobox
+	 *     mw transclusions Infobox
 	 *     mw transclusions Template:Stub --format=count
 	 *
 	 * @param string[] $args

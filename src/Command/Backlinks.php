@@ -13,6 +13,8 @@ class Backlinks extends Command {
 	/** Links table and its "from" column. */
 	protected const TABLE = 'pagelinks';
 	protected const FROM = 'pl_from';
+	/** Namespace of a target given without one. */
+	protected const DEFAULT_NAMESPACE = NS_MAIN;
 
 	/**
 	 * Lists pages that link to a page.
@@ -43,7 +45,7 @@ class Backlinks extends Command {
 	 * @param array<string,string|bool> $assoc_args
 	 */
 	public function __invoke( array $args, array $assoc_args ): void {
-		$target = $this->services()->getTitleFactory()->newFromText( $args[0] )
+		$target = $this->services()->getTitleFactory()->newFromText( $args[0], static::DEFAULT_NAMESPACE )
 			?? Runner::error( "Invalid title: $args[0]." );
 		$query = $this->services()->getConnectionProvider()->getReplicaDatabase()->newSelectQueryBuilder()
 			->select( [ 'page_id', 'page_namespace', 'page_title' ] )
@@ -53,7 +55,7 @@ class Backlinks extends Command {
 			->orderBy( [ 'page_namespace', 'page_title' ] )
 			->caller( __METHOD__ );
 		if ( isset( $assoc_args['namespace'] ) ) {
-			$query->andWhere( [ 'page_namespace' => $this->namespace( $assoc_args['namespace'] ) ] );
+			$query->andWhere( [ static::FROM . '_namespace' => $this->namespace( $assoc_args['namespace'] ) ] );
 		}
 
 		$formatter = $this->services()->getTitleFormatter();

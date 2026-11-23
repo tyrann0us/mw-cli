@@ -32,7 +32,7 @@ Feature: List pages that link to or transclude a page
       """
 
   Scenario: Transclusions lists the pages that use a template
-    When I run "mw transclusions Template:Greeting --format=ids"
+    When I run "mw transclusions Greeting --format=ids"
     Then STDOUT should be:
       """
       2
@@ -61,7 +61,7 @@ Feature: List pages that link to or transclude a page
       """
       Error: Unknown namespace: 99.
       """
-    When I try "mw backlinks Target --namespace"
+    When I try "mw backlinks Target --namespace="
     Then STDERR should contain:
       """
       Error: --namespace needs a value.
