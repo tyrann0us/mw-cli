@@ -116,6 +116,11 @@ Feature: Search and replace text in many pages
       """
       Error: Unknown namespace 'Nope'.
       """
+    When I try "mw search-replace '/a/' x --namespace="
+    Then STDERR should contain:
+      """
+      Error: Unknown namespace ''.
+      """
     When I try "mw search-replace '/a/' x --category=Help:Fruit"
     Then STDERR should contain:
       """
@@ -145,15 +150,19 @@ Feature: Search and replace text in many pages
 
   Scenario: Pages edited after they were read are skipped
     When I run "echo a | mw page put Foo && echo a | mw page put Bar"
-    And I run "rm -f /tmp/err; (until grep -q 'y/n' /tmp/err 2>/dev/null; do sleep 0.2; done; echo b | mw page put Bar >/dev/null; echo y) | mw search-replace '/^a$/' 'c' 2>/tmp/err; cat /tmp/err >&2; rm /tmp/err"
-    Then STDOUT should be:
+    And I try "rm -f /tmp/err; (until grep -q 'y/n' /tmp/err 2>/dev/null; do sleep 0.2; done; echo b | mw page put Bar >/dev/null; echo y) | mw search-replace '/^a$/' 'c' 2>/tmp/err; rc=$?; cat /tmp/err >&2; rm /tmp/err; exit $rc"
+    Then the return code should be 1
+    And STDOUT should be:
       """
       Success: Saved 'Foo' as revision 5 (1 replacement).
-      Success: Changed 1 page.
       """
     And STDERR should contain:
       """
       Warning: Skipped 'Bar': Edit conflict.
+      """
+    And STDERR should contain:
+      """
+      Error: Changed 1 page, skipped 1.
       """
     When I run "mw page get Bar"
     Then STDOUT should be:

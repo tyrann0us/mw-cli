@@ -50,7 +50,8 @@ abstract class Command {
 		$index = ctype_digit( $name )
 			? (int)$name
 			: $this->services()->getContentLanguage()->getNsIndex( strtr( $name, ' ', '_' ) );
-		if ( $index === false || !$this->services()->getNamespaceInfo()->exists( $index ) ) {
+		// getNsIndex() reads '' as the main namespace.
+		if ( $index === false || $name === '' || !$this->services()->getNamespaceInfo()->exists( $index ) ) {
 			Runner::error( "Unknown namespace '$name'." );
 		}
 		return $index;

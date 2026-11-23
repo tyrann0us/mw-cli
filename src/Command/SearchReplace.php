@@ -26,7 +26,7 @@ class SearchReplace extends Command {
 	 * ($wgContentNamespaces, usually just the main namespace) are searched. With both,
 	 * only category members in that namespace. Pages are read and checked before anything
 	 * is saved. Pages that were edited after
-	 * they were read, or fail to save, are skipped with a warning.
+	 * they were read, or fail to save, are skipped with a warning, and the command then exits with 1.
 	 *
 	 * ## OPTIONS
 	 *
@@ -119,6 +119,7 @@ class SearchReplace extends Command {
 		$flags = EDIT_UPDATE | ( !empty( $assoc_args['minor'] ) ? EDIT_MINOR : 0 );
 		$statusFormatter = $this->services()->getFormatterFactory()->getStatusFormatter( RequestContext::getMain() );
 		$saved = 0;
+		$skipped = 0;
 		foreach ( $changes as [ $page, $name, $revisionId, $content, $count ] ) {
 			// A new WikiPage, so the conflict check reads the current revision, not the one cached above.
 			$updater = $this->services()->getPageUpdaterFactory()
@@ -134,6 +135,7 @@ class SearchReplace extends Command {
 			// Earlier pages are saved already, so a failed page doesn't stop the others.
 			if ( !$status->isOK() ) {
 				Runner::warning( "Skipped '$name': " . $statusFormatter->getMessage( $status )->text() );
+				$skipped++;
 				continue;
 			}
 			if ( $revision === null ) {
@@ -141,11 +143,17 @@ class SearchReplace extends Command {
 				Runner::warning( "No change: '$name' would be saved with the same text." );
 				continue;
 			}
+			// Like maintenance scripts, so a long run doesn't leave replicas behind.
+			$this->services()->getDBLoadBalancerFactory()->waitForReplication();
 			$replaced = self::plural( $count, 'replacement' );
 			Runner::success( "Saved '$name' as revision {$revision->getId()} ($replaced)." );
 			$saved++;
 		}
-		Runner::success( 'Changed ' . self::plural( $saved, 'page' ) . '.' );
+		$changed = 'Changed ' . self::plural( $saved, 'page' );
+		if ( $skipped ) {
+			Runner::error( "$changed, skipped $skipped." );
+		}
+		Runner::success( "$changed." );
 	}
 
 	/**
