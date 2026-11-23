@@ -71,6 +71,13 @@ Feature: List recent changes
       """
       Help:Intro
       """
+    When I run "mw recent-changes --namespace=0 --field=type"
+    Then STDOUT should be:
+      """
+      edit
+      new
+      new
+      """
 
   Scenario: Bad filters fail
     When I try "mw recent-changes --type=delete"

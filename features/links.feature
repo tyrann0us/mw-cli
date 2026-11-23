@@ -50,6 +50,11 @@ Feature: List pages that link to or transclude a page
       """
       Error: Invalid title: [[Target.
       """
+    When I try "mw backlinks Special:Version"
+    Then STDERR should contain:
+      """
+      Error: Invalid title: Special:Version.
+      """
     When I try "mw transclusions Template:Greeting --namespace=Nope"
     Then the return code should be 1
     And STDERR should contain:

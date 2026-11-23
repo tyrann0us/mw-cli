@@ -45,8 +45,11 @@ class Backlinks extends Command {
 	 * @param array<string,string|bool> $assoc_args
 	 */
 	public function __invoke( array $args, array $assoc_args ): void {
-		$target = $this->services()->getTitleFactory()->newFromText( $args[0], static::DEFAULT_NAMESPACE )
-			?? Runner::error( "Invalid title: $args[0]." );
+		$target = $this->services()->getTitleFactory()->newFromText( $args[0], static::DEFAULT_NAMESPACE );
+		// Interwiki and special pages have no link table entries.
+		if ( !$target || $target->isExternal() || $target->getNamespace() < 0 ) {
+			Runner::error( "Invalid title: $args[0]." );
+		}
 		$query = $this->services()->getConnectionProvider()->getReplicaDatabase()->newSelectQueryBuilder()
 			->select( [ 'page_id', 'page_namespace', 'page_title' ] )
 			->from( static::TABLE )

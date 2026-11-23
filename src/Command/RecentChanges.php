@@ -15,6 +15,8 @@ use MwCli\Runner;
  */
 class RecentChanges extends Command {
 	private const TYPES = [ 'edit', 'new', 'log' ];
+	/** LogPage::DELETED_ACTION, which is \LogPage in 1.43 and MediaWiki\Logging\LogPage later. */
+	private const DELETED_ACTION = 1;
 
 	/**
 	 * Lists the latest entries from recent changes, newest first.
@@ -69,7 +71,11 @@ class RecentChanges extends Command {
 			->limit( (int)$limit )
 			->caller( __METHOD__ );
 		if ( isset( $assoc_args['namespace'] ) ) {
-			$query->andWhere( [ 'rc_namespace' => $this->namespace( $assoc_args['namespace'] ) ] );
+			// Skip log entries with a hidden target, or the filter would reveal their namespace.
+			$query->andWhere( [
+				'rc_namespace' => $this->namespace( $assoc_args['namespace'] ),
+				'rc_log_type IS NULL OR ' . $dbr->bitAnd( 'rc_deleted', self::DELETED_ACTION ) . ' = 0',
+			] );
 		}
 		if ( isset( $assoc_args['by'] ) ) {
 			$by = $assoc_args['by'];
@@ -96,8 +102,7 @@ class RecentChanges extends Command {
 		$res = $query->fetchResultSet();
 		while ( $row = $res->fetchObject() ) {
 			$hidden = (int)$row->rc_deleted;
-			// On log entries, bit 1 (LogPage::DELETED_ACTION) hides the target and action.
-			$hideAction = $row->rc_log_type !== null && $hidden & 1;
+			$hideAction = $row->rc_log_type !== null && $hidden & self::DELETED_ACTION;
 			$rows[] = [
 				'id' => (int)$row->rc_id,
 				// PHP reads YmdHis (MySQL, SQLite) and PostgreSQL timestamps alike.
