@@ -23,6 +23,10 @@ Feature: Run Semantic MediaWiki queries
       """
       [{"title":"Library","Street":"Side Street, Corner"}]
       """
+    And STDERR should contain:
+      """
+      Warning: There are more results. Use a higher --limit to see them.
+      """
     When I run "mw ask '[[Street::Main Street]]' --format=ids"
     Then STDOUT should be:
       """
@@ -72,7 +76,19 @@ Feature: Run Semantic MediaWiki queries
     Then the return code should be 1
     And STDERR should contain:
       """
+      Error: --limit needs a value.
+      """
+    When I try "mw ask '[[Category:Building]]' --limit="
+    Then the return code should be 1
+    And STDERR should contain:
+      """
       Error: --limit must be a number.
+      """
+    When I try "mw ask '[[Category:Building]]|mainlabel=-' --format=ids"
+    Then the return code should be 1
+    And STDERR should contain:
+      """
+      Error: There is no field to print.
       """
 
   # Runs in every job: the copy of LocalSettings.php without SMW covers this path in the SMW job too.

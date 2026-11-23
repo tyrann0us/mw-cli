@@ -56,6 +56,12 @@ class FormatterTest extends TestCase {
 		Formatter::items( [ [ 'a' => true, 'b' => null, 'c' => [ 1, 2 ] ] ], [], [ 'a', 'b', 'c' ] );
 	}
 
+	public function testIdsWithoutFieldsFails(): void {
+		$this->expectException( ExitException::class );
+		$this->expectExceptionMessage( 'There is no field to print.' );
+		Formatter::items( [ [] ], [ 'format' => 'ids' ], [] );
+	}
+
 	public function testInvalidFieldFails(): void {
 		$this->expectException( ExitException::class );
 		$this->expectExceptionMessage( 'Invalid field: nope.' );

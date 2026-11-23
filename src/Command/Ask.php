@@ -27,7 +27,7 @@ class Ask extends Command {
 	 * : The query, e.g. '[[Category:Building]]|?Street'.
 	 *
 	 * [--limit=<n>]
-	 * : Maximum number of results. Defaults to Semantic MediaWiki's limit.
+	 * : Maximum number of results. Defaults to Semantic MediaWiki's limit. A warning says when there are more.
 	 *
 	 * [--format=<format>]
 	 * : table, json, csv, yaml, ids or count.
@@ -58,7 +58,7 @@ class Ask extends Command {
 		// Output goes through --format. format=count or format=debug would change the query mode and limit.
 		$params = preg_grep( '/^format\s*=/i', $params, PREG_GREP_INVERT ) ?: [];
 		if ( isset( $assoc_args['limit'] ) ) {
-			if ( !is_string( $assoc_args['limit'] ) || !ctype_digit( $assoc_args['limit'] ) ) {
+			if ( !ctype_digit( (string)$assoc_args['limit'] ) ) {
 				Runner::error( '--limit must be a number.' );
 			}
 			$params[] = 'limit=' . $assoc_args['limit'];
@@ -91,5 +91,8 @@ class Ask extends Command {
 			$rows[] = $row;
 		}
 		Formatter::items( $rows, $assoc_args, $fields );
+		if ( $result->hasFurtherResults() ) {
+			Runner::warning( 'There are more results. Use a higher --limit to see them.' );
+		}
 	}
 }

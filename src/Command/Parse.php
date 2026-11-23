@@ -30,9 +30,7 @@ class Parse extends Command {
 	 * @param array<string,string|bool> $assoc_args
 	 */
 	public function __invoke( array $args, array $assoc_args ): void {
-		// A bare --title is true, which no title matches.
-		$name = $assoc_args['title'] ?? 'API';
-		$title = $this->services()->getTitleFactory()->newFromText( is_string( $name ) ? $name : '' )
+		$title = $this->services()->getTitleFactory()->newFromText( (string)( $assoc_args['title'] ?? 'API' ) )
 			?? Runner::error( 'Invalid title.' );
 		$file = $args[0] ?? null;
 		if ( $file !== null && ( is_dir( $file ) || !is_readable( $file ) ) ) {
@@ -43,6 +41,6 @@ class Parse extends Command {
 		$options = ParserOptions::newFromAnon();
 		$output = $this->services()->getParserFactory()->create()->parse( $text, $title, $options );
 		$html = $output->runOutputPipeline( $options, [ 'enableSectionEditLinks' => false ] )->getContentHolderText();
-		echo $html, "\n";
+		Runner::line( $html );
 	}
 }
