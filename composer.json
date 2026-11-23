@@ -14,6 +14,7 @@
         "mediawiki/core": "1.43.12",
         "mediawiki/core-1.46": "1.46.3",
         "mediawiki/mediawiki-codesniffer": "^48",
+        "mediawiki/semantic-media-wiki-src": "7.4.1",
         "phpstan/phpstan": "^2",
         "phpunit/phpunit": "^10.5 || ^11 || ^12"
     },
@@ -38,6 +39,18 @@
                 "description": "MediaWiki 1.46 source for static analysis only.",
                 "dist": {
                     "url": "https://github.com/wikimedia/mediawiki/archive/refs/tags/1.46.3.zip",
+                    "type": "zip"
+                }
+            }
+        },
+        {
+            "type": "package",
+            "package": {
+                "name": "mediawiki/semantic-media-wiki-src",
+                "version": "7.4.1",
+                "description": "Semantic MediaWiki source for static analysis only.",
+                "dist": {
+                    "url": "https://github.com/SemanticMediaWiki/SemanticMediaWiki/archive/refs/tags/7.4.1.zip",
                     "type": "zip"
                 }
             }
