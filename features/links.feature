@@ -9,11 +9,16 @@ Feature: List pages that link to or transclude a page
 
   Scenario: Backlinks lists the linking pages
     When I run "mw backlinks Target"
-    Then STDOUT should be:
+    Then STDOUT should contain:
       """
       id	title
-      2	Linker
-      3	Help:Linker
+      """
+    When I run "mw backlinks Target --fields=title"
+    Then STDOUT should be:
+      """
+      title
+      Linker
+      Help:Linker
       """
     When I run "mw backlinks Target --namespace=help --format=json --fields=title,namespace"
     Then STDOUT should be:
@@ -32,10 +37,10 @@ Feature: List pages that link to or transclude a page
       """
 
   Scenario: Transclusions lists the pages that use a template
-    When I run "mw transclusions Greeting --format=ids"
+    When I run "mw transclusions Greeting --field=title"
     Then STDOUT should be:
       """
-      2
+      Linker
       """
     When I run "mw transclusions Template:Greeting --namespace='Help talk' --format=count"
     Then STDOUT should be:

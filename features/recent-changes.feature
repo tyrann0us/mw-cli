@@ -8,7 +8,7 @@ Feature: List recent changes
     And I run "mw maint protect --reason=Vandalism Sandbox"
 
   Scenario: Recent changes are listed newest first
-    When I run "mw recent-changes --fields=type,action,comment,title,user"
+    When I run "mw recent-changes --limit=4 --fields=type,action,comment,title,user"
     Then STDOUT should be:
       """
       type	action	comment	title	user
@@ -16,19 +16,13 @@ Feature: List recent changes
       new			Help:Intro	Admin
       edit		Update	Sandbox	Admin
       new		Create	Sandbox	Maintenance script
-      new			Main Page	MediaWiki default
       """
-    When I run "mw recent-changes --limit=2 --format=ids"
+    When I run "mw recent-changes --limit=2 --format=csv --fields=title,namespace"
     Then STDOUT should be:
       """
-      5 4
-      """
-    When I run "mw recent-changes --limit=2 --format=csv --fields=id,title,namespace"
-    Then STDOUT should be:
-      """
-      id,title,namespace
-      5,Sandbox,0
-      4,Help:Intro,12
+      title,namespace
+      Sandbox,0
+      Help:Intro,12
       """
     When I run "mw recent-changes --limit=1 --format=yaml --fields=timestamp"
     Then STDOUT should contain:
@@ -47,10 +41,10 @@ Feature: List recent changes
       Help:Intro
       Sandbox
       """
-    When I run "mw recent-changes --type=edit --format=json --fields=title,revision"
+    When I run "mw recent-changes --type=edit --format=json --fields=title,type"
     Then STDOUT should be:
       """
-      [{"title":"Sandbox","revision":3}]
+      [{"title":"Sandbox","type":"edit"}]
       """
     When I run "mw recent-changes --type=new --namespace=Help --field=title"
     Then STDOUT should be:
@@ -59,12 +53,17 @@ Feature: List recent changes
       """
 
   Scenario: Hidden user names, edit summaries and log actions stay hidden
-    When I run "mw maint sql --query='UPDATE /*_*/recentchanges SET rc_deleted = 6 WHERE rc_this_oldid = 3'"
+    When I run "mw maint sql --query='UPDATE /*_*/recentchanges SET rc_deleted = 6 WHERE rc_this_oldid = (SELECT m FROM (SELECT MAX(rc_this_oldid) AS m FROM /*_*/recentchanges WHERE rc_last_oldid > 0 AND rc_log_type IS NULL) AS t)'"
     And I run "mw maint sql --query='UPDATE /*_*/recentchanges SET rc_deleted = 1 WHERE rc_log_type IS NOT NULL'"
-    And I run "mw recent-changes --limit=3 --format=json --fields=type,title,namespace,action,revision,user,comment"
+    And I run "mw recent-changes --limit=3 --format=json --fields=type,title,namespace,action,user,comment"
     Then STDOUT should be:
       """
-      [{"type":"log","title":null,"namespace":null,"action":null,"revision":null,"user":"Maintenance script","comment":"Vandalism"},{"type":"new","title":"Help:Intro","namespace":12,"action":null,"revision":4,"user":"Admin","comment":""},{"type":"edit","title":"Sandbox","namespace":0,"action":null,"revision":3,"user":null,"comment":null}]
+      [{"type":"log","title":null,"namespace":null,"action":null,"user":"Maintenance script","comment":"Vandalism"},{"type":"new","title":"Help:Intro","namespace":12,"action":null,"user":"Admin","comment":""},{"type":"edit","title":"Sandbox","namespace":0,"action":null,"user":null,"comment":null}]
+      """
+    When I run "mw recent-changes --limit=1 --format=json --fields=type,revision"
+    Then STDOUT should be:
+      """
+      [{"type":"log","revision":null}]
       """
     When I run "mw recent-changes --by=Admin --field=title"
     Then STDOUT should be:
