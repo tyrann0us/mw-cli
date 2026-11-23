@@ -4,11 +4,16 @@ on:
     paths:
       - '**.php'
       - 'bin/mw'
-      - 'composer.json'
+      - 'composer.*'
       - '.phpcs.xml'
+      - 'phpstan.neon.dist'
       - 'phpunit.xml.dist'
+      - '.github/workflows/quality-assurance-php.yml'
   push:
     branches: [main]
+  schedule:
+    - cron: '23 2 * * *'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -25,11 +30,16 @@ jobs:
     uses: inpsyde/reusable-workflows/.github/workflows/coding-standards-php.yml@main
     with:
       PHP_VERSION: '8.4'
+  static-analysis-php:
+    uses: inpsyde/reusable-workflows/.github/workflows/static-analysis-php.yml@main
+    with:
+      PHP_VERSION: '8.4'
   unit-tests-php:
-    uses: inpsyde/reusable-workflows/.github/workflows/tests-unit-php.yml@main
+    uses: inpsyde/reusable-workflows/.github/workflows/tests-unit-php.yml@feature/188-codecov-support-unit-tests-php
     strategy:
       matrix:
         php: ['8.1', '8.2', '8.3', '8.4']
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     with:
       PHP_VERSION: '${{ matrix.php }}'
-      PHPUNIT_ARGS: ''

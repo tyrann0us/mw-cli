@@ -16,9 +16,11 @@ composer test                         # unit + functional
 vendor/bin/phpunit                    # unit tests
 vendor/bin/phpunit --filter ConfigTest::testUnknownAliasFails   # single unit test
 composer lint                         # php -l + phpcs (mediawiki/mediawiki-codesniffer)
+composer phpstan                      # level 6, scans MediaWiki 1.43 from vendor/mediawiki/core
 
-docker compose up -d --build         # test wiki: MediaWiki 1.43 + SQLite + sshd
-SMW=1 docker compose up -d --build   # same, with Semantic MediaWiki
+docker compose up -d --build --wait  # test wiki: MediaWiki 1.43 + SQLite + sshd
+# Variants (docker compose down first): MW=1.46, MW=1.46 MW_BRANCH=master, SMW=1,
+# DB=mariadb COMPOSE_PROFILES=mariadb, COVERAGE=1 (then php tests/coverage/clover.php)
 vendor/bin/behat                      # functional tests against the test wiki
 vendor/bin/behat features/cli.feature:12    # single scenario by line
 vendor/bin/behat --tags='~@smw'       # skip scenarios that need Semantic MediaWiki
@@ -58,7 +60,9 @@ Tests come in two layers:
 - `features/` (Behat): one `.feature` per command group, run against the dockerized test wiki. Steps read like `Given a wiki`, `When I run "mw page get Main_Page"`, `Then STDOUT should contain:`, `Then the return code should be 1`. The step definitions are in `features/bootstrap/FeatureContext.php`. Each scenario resets the wiki from a SQLite snapshot, so scenarios are independent.
 - Scenarios tagged `@smw` need Semantic MediaWiki. Scenarios tagged `@ssh` run `mw --ssh=root@localhost…` inside the container, which runs sshd and trusts its own key. Commands in steps run via `docker compose exec` in `/var/www/html` (override with `MW_CLI_EXEC`).
 
-CI uses inpsyde/reusable-workflows: `quality-assurance-php.yml` runs lint, phpcs and PHPUnit (PHP 8.1 to 8.4). `functional-tests.yml` runs Behat against MediaWiki 1.43, once with SMW and once without.
+The container installs the wiki on first start (`tests/docker/setup.sh`) and snapshots the database; `reset-wiki` restores it before each scenario. With `COVERAGE=1`, `tests/coverage/prepend.php` is prepended to every PHP process in the container and writes raw pcov data to `build/coverage/`.
+
+CI uses inpsyde/reusable-workflows where one exists. `quality-assurance-php.yml` runs lint, phpcs, PHPStan and PHPUnit on PHP 8.1 to 8.4, with unit coverage going to Codecov. `functional-tests.yml` calls `behat.yml` for MediaWiki 1.43 and 1.46 on SQLite and MariaDB, 1.43 with SMW (this job also uploads Behat coverage), and MediaWiki master in the daily cron only. `lint.yml` runs actionlint, gherkin-lint and typos. `.codecov.yml` requires 100% coverage, combining unit and Behat coverage. `composer.lock` is committed and resolved for PHP 8.1 (`config.platform`).
 
 ## Roadmap
 
