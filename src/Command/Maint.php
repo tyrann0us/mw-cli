@@ -46,9 +46,8 @@ class Maint extends Command {
 				default => "--$key=$value",
 			};
 		}
-		[ $script, $scriptArgs ] = [ $args[0], array_slice( $args, 1 ) ];
 		$cmd = array_map( 'escapeshellarg', [
-			PHP_BINARY, $this->cli->wikiPath() . '/maintenance/run.php', $script, ...$options, ...$scriptArgs,
+			PHP_BINARY, $this->cli->wikiPath() . '/maintenance/run.php', $args[0], ...$options, ...array_slice( $args, 1 ),
 		] );
 		passthru( implode( ' ', $cmd ), $code );
 		if ( $code !== 0 ) {
