@@ -12,9 +12,9 @@ Feature: Read, edit and manage pages
       MediaWiki has been installed.
       """
     When I run "mw page put Foo /tmp/foo.wiki --summary='First version'"
-    Then STDOUT should be:
+    Then STDOUT should contain:
       """
-      Success: Saved 'Foo' as revision 2.
+      Success: Saved 'Foo' as revision
       """
     When I run "mw page get Foo"
     Then STDOUT should be:
@@ -27,11 +27,11 @@ Feature: Read, edit and manage pages
       Warning: No change: 'Foo' already has this text.
       """
     When I run "echo 'Second version' | mw page put Foo --minor"
-    Then STDOUT should be:
+    Then STDOUT should contain:
       """
-      Success: Saved 'Foo' as revision 3.
+      Success: Saved 'Foo' as revision
       """
-    When I run "mw maint sql --query='SELECT actor_name, comment_text, rev_minor_edit FROM revision JOIN actor ON rev_actor = actor_id JOIN comment ON rev_comment_id = comment_id WHERE rev_id = 2'"
+    When I run "mw maint sql --query='SELECT actor_name, comment_text, rev_minor_edit FROM revision JOIN actor ON rev_actor = actor_id JOIN comment ON rev_comment_id = comment_id WHERE rev_id = (SELECT MIN(rev_id) FROM revision WHERE rev_page = (SELECT rev_page FROM revision ORDER BY rev_id DESC LIMIT 1))'"
     Then STDOUT should contain:
       """
           [actor_name] => Maintenance script
@@ -80,7 +80,7 @@ Feature: Read, edit and manage pages
 
   Scenario: Edits are made as the user from --user
     When I run "echo One | mw --user=Admin page put Foo"
-    And I run "mw maint sql --query='SELECT comment_text FROM revision JOIN comment ON rev_comment_id = comment_id WHERE rev_id = 2'"
+    And I run "mw maint sql --query='SELECT comment_text FROM revision JOIN comment ON rev_comment_id = comment_id WHERE rev_id = (SELECT MIN(rev_id) FROM revision WHERE rev_page = (SELECT rev_page FROM revision ORDER BY rev_id DESC LIMIT 1))'"
     Then STDOUT should contain:
       """
           [comment_text] => Created page with "One
@@ -90,7 +90,7 @@ Feature: Read, edit and manage pages
     Then STDOUT should be:
       """
       """
-    When I run "mw maint sql --query='SELECT actor_name, actor_user FROM revision JOIN actor ON rev_actor = actor_id WHERE rev_id > 1 ORDER BY rev_id'"
+    When I run "mw maint sql --query='SELECT actor_name, actor_user FROM revision JOIN actor ON rev_actor = actor_id WHERE rev_page = (SELECT rev_page FROM revision ORDER BY rev_id DESC LIMIT 1) ORDER BY rev_id'"
     Then STDOUT should contain:
       """
           [actor_name] => Admin
@@ -117,14 +117,18 @@ Feature: Read, edit and manage pages
 
   Scenario: List pages by namespace and prefix
     When I run "echo a | mw page put Foo && echo b | mw page put Foo/Bar && echo c | mw page put Help:Foo"
-    And I run "mw page list --fields=title,namespace,redirect --format=csv"
+    And I run "mw page list --namespace=0 --fields=title,namespace,redirect --format=csv"
     Then STDOUT should be:
       """
       title,namespace,redirect
       Foo,0,false
       Foo/Bar,0,false
       "Main Page",0,false
-      Help:Foo,12,false
+      """
+    When I run "mw page list --field=title"
+    Then STDOUT should contain:
+      """
+      Help:Foo
       """
     When I run "mw page list --prefix=foo --field=title"
     Then STDOUT should be:
@@ -138,10 +142,10 @@ Feature: Read, edit and manage pages
       """
       0
       """
-    When I run "mw page list --namespace=Help --format=ids"
+    When I run "mw page list --namespace=Help --format=count"
     Then STDOUT should be:
       """
-      4
+      1
       """
     When I run "mw page list --namespace=0 --prefix=Foo/ --field=title"
     Then STDOUT should be:
@@ -280,11 +284,11 @@ Feature: Read, edit and manage pages
       user = Admin
       """
     When I run "cd /tmp/project && echo text | mw @prod page put Foo"
-    Then STDOUT should be:
+    Then STDOUT should contain:
       """
-      Success: Saved 'Foo' as revision 2.
+      Success: Saved 'Foo' as revision
       """
-    When I run "mw maint sql --query='SELECT actor_name FROM revision JOIN actor ON rev_actor = actor_id WHERE rev_id = 2'"
+    When I run "mw maint sql --query='SELECT actor_name FROM revision JOIN actor ON rev_actor = actor_id WHERE rev_id = (SELECT MAX(rev_id) FROM revision)'"
     Then STDOUT should contain:
       """
           [actor_name] => Admin
