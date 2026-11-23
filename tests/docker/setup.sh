@@ -13,7 +13,7 @@ if [ ! -f LocalSettings.php ]; then
 	php maintenance/run.php install "$@" --server=http://localhost --scriptpath= \
 		--pass=AdminPassword123 'Test Wiki' Admin
 	if [ "$SMW" = 1 ]; then
-		printf "wfLoadExtension( 'SemanticMediaWiki' );\nenableSemantics( 'localhost' );\n" >> LocalSettings.php
+		printf "wfLoadExtension( 'SemanticMediaWiki' );\n" >> LocalSettings.php
 		php maintenance/run.php update --quick
 	fi
 	if [ "$DB" = mariadb ]; then

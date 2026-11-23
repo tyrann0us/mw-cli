@@ -34,6 +34,9 @@ class FeatureContext implements Context {
 	 */
 	public function aFileWith( string $path, PyStringNode $content ): void {
 		$this->exec( 'mkdir -p "$(dirname ' . escapeshellarg( $path ) . ')" && cat > ' . escapeshellarg( $path ), $content->getRaw() . "\n" );
+		if ( $this->code !== 0 ) {
+			throw new RuntimeException( "Could not write $path:\n$this->stderr" );
+		}
 	}
 
 	/**
@@ -58,6 +61,19 @@ class FeatureContext implements Context {
 	 */
 	public function stdoutShouldBe( PyStringNode $expected ): void {
 		$this->assertSame( $expected->getRaw(), rtrim( $this->stdout, "\n" ), 'STDOUT' );
+	}
+
+	/**
+	 * @Then STDOUT should be like:
+	 */
+	public function stdoutShouldBeLike( PyStringNode $expected ): void {
+		// Like "should be", but {id} stands for any ID (a positive number), e.g. one the install assigns.
+		$pattern = str_replace( '\{id\}', '[1-9][0-9]*', preg_quote( $expected->getRaw(), '#' ) );
+		if ( !preg_match( "#^$pattern$#", rtrim( $this->stdout, "\n" ) ) ) {
+			throw new RuntimeException(
+				"STDOUT is:\n$this->stdout\nExpected ({id} is any ID):\n{$expected->getRaw()}\n\nSTDERR:\n$this->stderr"
+			);
+		}
 	}
 
 	/**

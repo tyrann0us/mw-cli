@@ -4,7 +4,7 @@ Feature: Run mw, get help and use global flags
     When I run "mw help"
     Then STDOUT should contain:
       """
-      maint  Runs a MediaWiki maintenance script.
+      Runs a MediaWiki maintenance script.
       """
 
   Scenario: Help for a subcommand shows its usage

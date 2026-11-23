@@ -26,7 +26,7 @@ RUN if [ -n "$MW_BRANCH" ]; then \
 	fi
 
 RUN if [ "$SMW" = 1 ]; then \
-		COMPOSER=composer.local.json composer require --no-update mediawiki/semantic-media-wiki:~5.0 \
+		COMPOSER=composer.local.json composer require --no-update mediawiki/semantic-media-wiki:~7.4 \
 		&& composer update --no-dev --no-interaction --no-progress; \
 	fi
 

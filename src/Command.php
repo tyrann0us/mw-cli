@@ -3,6 +3,7 @@
 namespace MwCli;
 
 use MediaWiki\MediaWikiServices;
+use MediaWiki\User\User;
 
 /**
  * Base for classes in src/Command/. The file name is the command name (SearchReplace.php is
@@ -18,5 +19,41 @@ abstract class Command {
 
 	protected function services(): MediaWikiServices {
 		return MediaWikiServices::getInstance();
+	}
+
+	/**
+	 * The user from --user (name, or ID if no user has that name), or MediaWiki's "Maintenance script" system user.
+	 */
+	protected function performer(): User {
+		$name = $this->cli->flag( 'user' );
+		if ( $name === null ) {
+			// No service replaces this in 1.43, and it isn't deprecated.
+			return User::newSystemUser( User::MAINTENANCE_SCRIPT_USER, [ 'steal' => true ] )
+				?? Runner::error( "Can't create the '" . User::MAINTENANCE_SCRIPT_USER . "' user." );
+		}
+		// The lookup, unlike UserFactory::newFromId(), returns null for IDs that don't exist.
+		$lookup = $this->services()->getUserIdentityLookup();
+		$user = $lookup->getUserIdentityByName( $name );
+		if ( !$user?->isRegistered() && ctype_digit( $name ) ) {
+			$user = $lookup->getUserIdentityByUserId( (int)$name );
+		}
+		if ( $user === null || !$user->isRegistered() ) {
+			Runner::error( "Invalid user '$name'." );
+		}
+		return $this->services()->getUserFactory()->newFromUserIdentity( $user );
+	}
+
+	/**
+	 * A namespace index from a number or a (localized) namespace name, or fails.
+	 */
+	protected function namespace( string $name ): int {
+		$index = ctype_digit( $name )
+			? (int)$name
+			: $this->services()->getContentLanguage()->getNsIndex( strtr( $name, ' ', '_' ) );
+		// getNsIndex() reads '' as the main namespace.
+		if ( $index === false || $name === '' || !$this->services()->getNamespaceInfo()->exists( $index ) ) {
+			Runner::error( "Unknown namespace '$name'." );
+		}
+		return $index;
 	}
 }
