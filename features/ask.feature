@@ -25,7 +25,7 @@ Feature: Run Semantic MediaWiki queries
       """
     And STDERR should contain:
       """
-      Warning: There are more results. Use a higher --limit to see them.
+      Warning: There are more results than the 1 shown.
       """
     When I run "mw ask '[[Street::Main Street]]' --format=ids"
     Then STDOUT should be:
@@ -70,7 +70,7 @@ Feature: Run Semantic MediaWiki queries
     Then the return code should be 1
     And STDERR should contain:
       """
-      Error: --limit must be a number.
+      Error: --limit must be a positive number.
       """
     When I try "mw ask '[[Category:Building]]' --limit"
     Then the return code should be 1
@@ -78,11 +78,17 @@ Feature: Run Semantic MediaWiki queries
       """
       Error: --limit needs a value.
       """
+    When I try "mw ask '[[Category:Building]]' --limit=0"
+    Then the return code should be 1
+    And STDERR should contain:
+      """
+      Error: --limit must be a positive number.
+      """
     When I try "mw ask '[[Category:Building]]' --limit="
     Then the return code should be 1
     And STDERR should contain:
       """
-      Error: --limit must be a number.
+      Error: --limit must be a positive number.
       """
     When I try "mw ask '[[Category:Building]]|mainlabel=-' --format=ids"
     Then the return code should be 1
