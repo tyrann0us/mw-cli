@@ -1,0 +1,50 @@
+name: 'Functional Tests'
+on:
+  pull_request:
+    paths:
+      - '**.php'
+      - 'bin/mw'
+      - 'composer.*'
+      - 'behat.yml'
+      - 'docker-compose.yml'
+      - 'features/**'
+      - 'tests/docker/**'
+      - 'tests/coverage/**'
+      - '.github/workflows/behat.yml'
+      - '.github/workflows/functional-tests.yml'
+  push:
+    branches: [main]
+  schedule:
+    - cron: '23 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  behat:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { mw: '1.43', db: sqlite, smw: true, coverage: true }
+          - { mw: '1.43', db: sqlite, smw: false, coverage: false }
+          - { mw: '1.43', db: mariadb, smw: false, coverage: false }
+          - { mw: '1.46', db: sqlite, smw: false, coverage: false }
+          - { mw: '1.46', db: mariadb, smw: false, coverage: false }
+    uses: ./.github/workflows/behat.yml
+    with:
+      mw: ${{ matrix.mw }}
+      db: ${{ matrix.db }}
+      smw: ${{ matrix.smw }}
+      coverage: ${{ matrix.coverage }}
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  # MediaWiki master changes daily, so it only runs on schedule and on demand, not on PRs.
+  behat-master:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/behat.yml
+    with:
+      mw: '1.46'
+      mw-branch: master

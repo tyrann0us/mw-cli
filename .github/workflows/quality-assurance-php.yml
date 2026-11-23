@@ -1,0 +1,49 @@
+name: 'PHP Quality Assurance'
+on:
+  pull_request:
+    paths:
+      - '**.php'
+      - 'bin/mw'
+      - 'composer.*'
+      - '.phpcs.xml'
+      - 'phpstan*.neon*'
+      - 'phpunit.xml.dist'
+      - '.github/workflows/quality-assurance-php.yml'
+  push:
+    branches: [main]
+  schedule:
+    - cron: '23 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint-php:
+    uses: inpsyde/reusable-workflows/.github/workflows/lint-php.yml@main
+    with:
+      # The oldest supported PHP catches syntax it can't parse; unit tests cover 8.4.
+      PHP_VERSION: '8.1'
+  coding-standards-php:
+    uses: inpsyde/reusable-workflows/.github/workflows/coding-standards-php.yml@main
+    with:
+      PHP_VERSION: '8.4'
+  static-analysis-php:
+    uses: inpsyde/reusable-workflows/.github/workflows/static-analysis-php.yml@main
+    with:
+      PHP_VERSION: '8.4'
+  # Same analysis against MediaWiki 1.46, for APIs removed after 1.43.
+  static-analysis-php-mw146:
+    uses: inpsyde/reusable-workflows/.github/workflows/static-analysis-php.yml@main
+    with:
+      PHP_VERSION: '8.4'
+      PHPSTAN_ARGS: 'analyse --no-progress --memory-limit=1G -c phpstan-mw146.neon.dist'
+  unit-tests-php:
+    uses: inpsyde/reusable-workflows/.github/workflows/tests-unit-php.yml@feature/188-codecov-support-unit-tests-php
+    strategy:
+      matrix:
+        php: ['8.1', '8.2', '8.3', '8.4']
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+    with:
+      PHP_VERSION: '${{ matrix.php }}'

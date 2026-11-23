@@ -1,0 +1,63 @@
+name: 'Behat'
+on:
+  workflow_call:
+    inputs:
+      mw:
+        description: MediaWiki image tag.
+        type: string
+        default: '1.43'
+      mw-branch:
+        description: Git branch of MediaWiki core to test instead of the release.
+        type: string
+        default: ''
+      db:
+        description: sqlite or mariadb.
+        type: string
+        default: sqlite
+      smw:
+        description: Install Semantic MediaWiki and run @smw scenarios.
+        type: boolean
+        default: false
+      coverage:
+        description: Collect coverage and upload it to Codecov.
+        type: boolean
+        default: false
+    secrets:
+      CODECOV_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  behat:
+    name: "MW ${{ inputs.mw-branch || inputs.mw }}, ${{ inputs.db }}${{ inputs.smw && ', SMW' || '' }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      MW: ${{ inputs.mw }}
+      MW_BRANCH: ${{ inputs.mw-branch }}
+      DB: ${{ inputs.db }}
+      COMPOSE_PROFILES: ${{ inputs.db == 'mariadb' && 'mariadb' || '' }}
+      SMW: ${{ inputs.smw && '1' || '0' }}
+      COVERAGE: ${{ inputs.coverage && '1' || '0' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+      - uses: ramsey/composer-install@v3
+      - run: docker compose up -d --build --wait
+      - run: vendor/bin/behat --format=progress ${{ !inputs.smw && '--tags=~@smw' || '' }}
+      - if: inputs.coverage
+        run: php tests/coverage/clover.php
+      - if: inputs.coverage
+        uses: codecov/codecov-action@v7
+        with:
+          files: ./build/behat-clover.xml
+          flags: functional
+          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Dump container logs on failure
+        if: failure()
+        run: docker compose logs

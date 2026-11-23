@@ -1,0 +1,78 @@
+{
+    "name": "tyrann0us/mw-cli",
+    "description": "Command-line interface for MediaWiki.",
+    "license": "MIT",
+    "bin": [
+        "bin/mw"
+    ],
+    "require": {
+        "php": ">=8.1",
+        "ext-mbstring": "*"
+    },
+    "require-dev": {
+        "behat/behat": "^3.14",
+        "mediawiki/core": "1.43.12",
+        "mediawiki/core-1.46": "1.46.3",
+        "mediawiki/mediawiki-codesniffer": "^48",
+        "phpstan/phpstan": "^2",
+        "phpunit/phpunit": "^10.5 || ^11 || ^12"
+    },
+    "repositories": [
+        {
+            "type": "package",
+            "package": {
+                "name": "mediawiki/core",
+                "version": "1.43.12",
+                "description": "MediaWiki 1.43 source for static analysis only.",
+                "dist": {
+                    "url": "https://github.com/wikimedia/mediawiki/archive/refs/tags/1.43.12.zip",
+                    "type": "zip"
+                }
+            }
+        },
+        {
+            "type": "package",
+            "package": {
+                "name": "mediawiki/core-1.46",
+                "version": "1.46.3",
+                "description": "MediaWiki 1.46 source for static analysis only.",
+                "dist": {
+                    "url": "https://github.com/wikimedia/mediawiki/archive/refs/tags/1.46.3.zip",
+                    "type": "zip"
+                }
+            }
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "MwCli\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "MwCli\\Tests\\": "tests/unit/"
+        }
+    },
+    "scripts": {
+        "lint": [
+            "find bin src tests features -name '*.php' -print0 | xargs -0 -n1 php -l > /dev/null && php -l bin/mw > /dev/null",
+            "phpcs"
+        ],
+        "test": [
+            "phpunit",
+            "behat"
+        ],
+        "phpstan": [
+            "phpstan analyse --memory-limit=1G",
+            "phpstan analyse --memory-limit=1G -c phpstan-mw146.neon.dist"
+        ]
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        },
+        "platform": {
+            "php": "8.1.0"
+        }
+    }
+}

@@ -1,0 +1,7 @@
+# Shared by phpstan.neon.dist (MediaWiki 1.43) and phpstan-mw146.neon.dist (MediaWiki 1.46).
+parameters:
+  level: 8
+  paths:
+    - bin/mw
+    - src/
+  treatPhpDocTypesAsCertain: false

@@ -1,0 +1,7 @@
+includes:
+  - phpstan-base.neon
+parameters:
+  # MediaWiki 1.43 source, installed as a dev dependency for analysis only.
+  scanDirectories:
+    - vendor/mediawiki/core/includes
+    - vendor/mediawiki/core/maintenance/includes

@@ -1,0 +1,32 @@
+name: 'Lint'
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '23 1 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint-workflows:
+    uses: inpsyde/reusable-workflows/.github/workflows/lint-workflows.yml@main
+  lint-gherkin:
+    name: 'Lint Gherkin feature files'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - run: npx --yes gherkin-lint@4 features
+  spellcheck:
+    name: 'Spell check'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: crate-ci/typos@v1

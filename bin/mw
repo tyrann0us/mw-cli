@@ -1,0 +1,32 @@
+#!/usr/bin/env php
+<?php
+
+// No Composer autoloader at runtime: MediaWiki brings its own vendor/ and versions could clash.
+spl_autoload_register( static function ( string $class ): void {
+	if ( str_starts_with( $class, 'MwCli\\' ) ) {
+		$file = __DIR__ . '/../src/' . strtr( substr( $class, 6 ), '\\', '/' ) . '.php';
+		if ( is_file( $file ) ) {
+			require $file;
+		}
+	}
+} );
+
+try {
+	$cwd = getcwd() ?: MwCli\Runner::error( "Can't read the current directory." );
+	$mwCli = new MwCli\Runner( array_slice( $_SERVER['argv'], 1 ), $cwd, getenv( 'HOME' ) ?: null );
+	$ssh = $mwCli->sshCommand();
+	if ( $ssh !== null ) {
+		passthru( $ssh, $code );
+		exit( $code );
+	}
+	if ( !$mwCli->needsWiki() ) {
+		exit( $mwCli->run() );
+	}
+	$mwCli->validate();
+	$mwPath = $mwCli->wikiPath();
+} catch ( MwCli\ExitException $e ) {
+	exit( MwCli\Runner::report( $e ) );
+}
+
+// MediaWiki's Setup.php expects to run in global scope, so this stays a file-scope require.
+require __DIR__ . '/../src/bootstrap.php';

@@ -1,0 +1,10 @@
+#!/bin/sh
+# Puts the database back to the state right after setup.sh installed the wiki.
+set -e
+if [ "$DB" = mariadb ]; then
+	mariadb -h db -uroot -proot -e 'DROP DATABASE wiki; CREATE DATABASE wiki'
+	mariadb -h db -uroot -proot wiki < /var/www/snapshot.sql
+else
+	rm -rf /var/www/data
+	cp -a /var/www/data.snapshot /var/www/data
+fi
