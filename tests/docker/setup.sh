@@ -24,7 +24,8 @@ if [ ! -f LocalSettings.php ]; then
 fi
 
 if [ "$COVERAGE" = 1 ]; then
-	mkdir -p /mw-cli/build/coverage
+	# The container runs as root; let the CI user write the Clover report next to the raw data.
+	mkdir -p /mw-cli/build/coverage && chmod -R a+rwX /mw-cli/build
 	printf 'pcov.enabled=1\npcov.directory=/mw-cli\nauto_prepend_file=/mw-cli/tests/coverage/prepend.php\n' \
 		> /usr/local/etc/php/conf.d/zz-pcov.ini
 fi
