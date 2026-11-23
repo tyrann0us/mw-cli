@@ -2,6 +2,9 @@
 
 namespace MwCli\Command;
 
+use DateTimeImmutable;
+use DateTimeZone;
+use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\User\UserNameUtils;
 use MwCli\Command;
 use MwCli\Formatter;
@@ -35,7 +38,7 @@ class RecentChanges extends Command {
 	 *
 	 * [--fields=<fields>]
 	 * : Comma-separated fields to show: id, timestamp, type, title, namespace, user, comment,
-	 * : revision, action. Default: timestamp, type, title, user, comment.
+	 * : revision, action. Default: id, timestamp, type, title, user, comment.
 	 *
 	 * [--field=<field>]
 	 * : Prints only the value of this field.
@@ -49,14 +52,14 @@ class RecentChanges extends Command {
 	 * @param array<string,string|bool> $assoc_args
 	 */
 	public function __invoke( array $args, array $assoc_args ): void {
-		$limit = (string)( $assoc_args['limit'] ?? '50' );
-		if ( !ctype_digit( $limit ) || (int)$limit < 1 ) {
+		$limit = $assoc_args['limit'] ?? '50';
+		if ( !is_string( $limit ) || !ctype_digit( $limit ) || (int)$limit < 1 ) {
 			Runner::error( '--limit must be a positive number.' );
 		}
 		$query = $this->services()->getConnectionProvider()->getReplicaDatabase()->newSelectQueryBuilder()
 			->select( [
 				'rc_id', 'rc_timestamp', 'rc_source', 'rc_namespace', 'rc_title', 'rc_this_oldid',
-				'rc_log_type', 'rc_log_action', 'actor_name', 'comment_text',
+				'rc_log_type', 'rc_log_action', 'rc_deleted', 'actor_name', 'comment_text',
 			] )
 			->from( 'recentchanges' )
 			->join( 'actor', null, 'actor_id = rc_actor' )
@@ -65,7 +68,7 @@ class RecentChanges extends Command {
 			->limit( (int)$limit )
 			->caller( __METHOD__ );
 		if ( isset( $assoc_args['namespace'] ) ) {
-			$query->andWhere( [ 'rc_namespace' => $this->namespace( (string)$assoc_args['namespace'] ) ] );
+			$query->andWhere( [ 'rc_namespace' => $this->namespace( $assoc_args['namespace'] ) ] );
 		}
 		if ( isset( $assoc_args['by'] ) ) {
 			$by = (string)$assoc_args['by'];
@@ -80,26 +83,26 @@ class RecentChanges extends Command {
 		}
 
 		$formatter = $this->services()->getTitleFormatter();
+		$utc = new DateTimeZone( 'UTC' );
 		$rows = [];
 		$res = $query->fetchResultSet();
 		while ( $row = $res->fetchObject() ) {
+			$hidden = (int)$row->rc_deleted;
 			$rows[] = [
 				'id' => (int)$row->rc_id,
-				// YmdHis on MySQL and SQLite to ISO 8601. MWTimestamp's parent isn't in MediaWiki's
-				// includes/, so PHPStan can't see it.
-				'timestamp' => preg_replace(
-					'/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)$/', '$1-$2-$3T$4:$5:$6Z', $row->rc_timestamp
-				),
+				// PHP reads YmdHis (MySQL, SQLite) and PostgreSQL timestamps alike.
+				'timestamp' => ( new DateTimeImmutable( $row->rc_timestamp, $utc ) )->format( 'Y-m-d\TH:i:s\Z' ),
 				// mw.edit, mw.new, mw.log, mw.categorize, or an extension's own source.
 				'type' => preg_replace( '/^mw\./', '', $row->rc_source ),
 				'title' => $formatter->formatTitle( (int)$row->rc_namespace, $row->rc_title ),
 				'namespace' => (int)$row->rc_namespace,
-				'user' => $row->actor_name,
-				'comment' => $row->comment_text,
+				// Hidden by revision deletion or suppression.
+				'user' => $hidden & RevisionRecord::DELETED_USER ? null : $row->actor_name,
+				'comment' => $hidden & RevisionRecord::DELETED_COMMENT ? null : $row->comment_text,
 				'revision' => (int)$row->rc_this_oldid ?: null,
 				'action' => $row->rc_log_type === null ? null : $row->rc_log_type . '/' . $row->rc_log_action,
 			];
 		}
-		Formatter::items( $rows, $assoc_args, [ 'timestamp', 'type', 'title', 'user', 'comment' ] );
+		Formatter::items( $rows, $assoc_args, [ 'id', 'timestamp', 'type', 'title', 'user', 'comment' ] );
 	}
 }

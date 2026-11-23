@@ -18,6 +18,11 @@ Feature: List recent changes
       new		Create	Sandbox	Maintenance script
       new			Main Page	MediaWiki default
       """
+    When I run "mw recent-changes --limit=2 --format=ids"
+    Then STDOUT should be:
+      """
+      5 4
+      """
     When I run "mw recent-changes --limit=2 --format=csv --fields=id,title,namespace"
     Then STDOUT should be:
       """
@@ -51,6 +56,14 @@ Feature: List recent changes
     Then STDOUT should be:
       """
       Help:Intro
+      """
+
+  Scenario: Hidden user names and edit summaries stay hidden
+    When I run "mw maint sql --query='UPDATE /*_*/recentchanges SET rc_deleted = 6 WHERE rc_this_oldid = 3'"
+    And I run "mw recent-changes --type=edit --format=json --fields=title,user,comment"
+    Then STDOUT should be:
+      """
+      [{"title":"Sandbox","user":null,"comment":null}]
       """
 
   Scenario: Bad filters fail

@@ -61,3 +61,8 @@ Feature: List pages that link to or transclude a page
       """
       Error: Unknown namespace: 99.
       """
+    When I try "mw backlinks Target --namespace"
+    Then STDERR should contain:
+      """
+      Error: --namespace needs a value.
+      """
