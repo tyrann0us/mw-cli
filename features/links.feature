@@ -9,16 +9,11 @@ Feature: List pages that link to or transclude a page
 
   Scenario: Backlinks lists the linking pages
     When I run "mw backlinks Target"
-    Then STDOUT should contain:
+    Then STDOUT should be like:
       """
       id	title
-      """
-    When I run "mw backlinks Target --fields=title"
-    Then STDOUT should be:
-      """
-      title
-      Linker
-      Help:Linker
+      {id}	Linker
+      {id}	Help:Linker
       """
     When I run "mw backlinks Target --namespace=help --format=json --fields=title,namespace"
     Then STDOUT should be:
@@ -42,6 +37,11 @@ Feature: List pages that link to or transclude a page
       """
       Linker
       """
+    When I run "mw transclusions Greeting --format=ids"
+    Then STDOUT should be like:
+      """
+      {id}
+      """
     When I run "mw transclusions Template:Greeting --namespace='Help talk' --format=count"
     Then STDOUT should be:
       """
@@ -59,6 +59,12 @@ Feature: List pages that link to or transclude a page
     Then STDERR should contain:
       """
       Error: Invalid title: Special:Version.
+      """
+    When I try "mw backlinks '#Section'"
+    Then the return code should be 1
+    And STDERR should contain:
+      """
+      Error: Invalid title: #Section.
       """
     When I try "mw transclusions Template:Greeting --namespace=Nope"
     Then the return code should be 1
