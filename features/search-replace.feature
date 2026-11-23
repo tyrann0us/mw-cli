@@ -129,9 +129,10 @@ Feature: Search and replace text in many pages
       Error: Unknown namespace 'Nope'.
       """
     When I try "mw search-replace '/a/' x --namespace="
-    Then STDERR should contain:
+    Then the return code should be 1
+    And STDERR should contain:
       """
-      Error: Unknown namespace ''.
+      Error: --namespace needs a value.
       """
     When I try "mw search-replace '/a/' x --category=Help:Fruit"
     Then STDERR should contain:
