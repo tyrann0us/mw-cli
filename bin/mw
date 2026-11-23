@@ -22,6 +22,7 @@ try {
 	if ( !$mwCli->needsWiki() ) {
 		exit( $mwCli->run() );
 	}
+	$mwCli->validate();
 	$mwPath = $mwCli->wikiPath();
 } catch ( MwCli\ExitException $e ) {
 	exit( MwCli\Runner::report( $e ) );

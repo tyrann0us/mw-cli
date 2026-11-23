@@ -32,16 +32,13 @@ class Config {
 			if ( $ini === false ) {
 				Runner::error( "Can't parse config file $file." );
 			}
-			// A relative path is relative to the file that sets it, unless it's for an SSH host.
+			// Remember where each path was set: a relative one is relative to that file, unless
+			// it ends up in an SSH alias, which only resolve() knows after all files are merged.
 			foreach ( [ null, ...array_keys( array_filter( $ini, 'is_array' ) ) ] as $section ) {
-				$values = $section === null ? $ini : $ini[$section];
-				if ( is_string( $values['path'] ?? null ) && !isset( $values['ssh'] ) && !preg_match( '#^[/~]#', $values['path'] ) ) {
-					$path = dirname( $file ) . '/' . $values['path'];
-					if ( $section === null ) {
-						$ini['path'] = $path;
-					} else {
-						$ini[$section]['path'] = $path;
-					}
+				if ( $section === null && isset( $ini['path'] ) ) {
+					$ini['path-base'] = dirname( $file );
+				} elseif ( $section !== null && isset( $ini[$section]['path'] ) ) {
+					$ini[$section]['path-base'] = dirname( $file );
 				}
 			}
 			$config = array_replace_recursive( $config, $ini );
@@ -60,7 +57,7 @@ class Config {
 	 */
 	public static function resolve( array $config, ?string $alias, array $flags ): array {
 		$global = array_intersect_key(
-			array_filter( $config, static fn ( $v ) => !is_array( $v ) ),
+			self::rebase( array_filter( $config, static fn ( $v ) => !is_array( $v ) ) ),
 			array_flip( Runner::GLOBAL_FLAGS )
 		);
 
@@ -69,7 +66,10 @@ class Config {
 			if ( !is_array( $section ) ) {
 				Runner::error( "Alias '$alias' not found." );
 			}
-			$section = array_intersect_key( $section, array_flip( Runner::GLOBAL_FLAGS ) );
+			$section = array_intersect_key(
+				isset( $section['ssh'] ) ? $section : self::rebase( $section ),
+				array_flip( Runner::GLOBAL_FLAGS )
+			);
 			if ( isset( $section['ssh'] ) ) {
 				foreach ( [ 'path', 'user' ] as $key ) {
 					if ( isset( $section[$key] ) ) {
@@ -84,7 +84,7 @@ class Config {
 		$out = [];
 		foreach ( array_replace( $global, $flags ) as $key => $value ) {
 			if ( $key === 'quiet' ) {
-				$out[$key] = (bool)$value;
+				$out[$key] = is_string( $value ) ? filter_var( $value, FILTER_VALIDATE_BOOLEAN ) : (bool)$value;
 			} elseif ( is_bool( $value ) || $value === '' || !is_scalar( $value ) ) {
 				Runner::error( "--$key needs a value." );
 			} else {
@@ -92,5 +92,17 @@ class Config {
 			}
 		}
 		return $out;
+	}
+
+	/**
+	 * @param array<string,mixed> $values
+	 * @return array<string,mixed>
+	 */
+	private static function rebase( array $values ): array {
+		$path = $values['path'] ?? null;
+		if ( is_string( $path ) && isset( $values['path-base'] ) && !preg_match( '#^[/~]#', $path ) ) {
+			$values['path'] = $values['path-base'] . '/' . $path;
+		}
+		return $values;
 	}
 }

@@ -182,16 +182,55 @@ class Runner {
 				( new Command\Help( $this ) )->__invoke( array_slice( $this->args, 0, $method === '__invoke' ? 1 : 2 ), [] );
 				return 0;
 			}
-			$doc = ( new ReflectionMethod( $command, $method ) )->getDocComment() ?: '';
-			$problem = Synopsis::validate( Synopsis::parse( $doc ), $args, $this->assoc );
-			if ( $problem !== null ) {
-				self::error( $problem . "\nusage: " . $this->usage( $command, $method ) );
-			}
+			$this->validate();
 			( new $command( $this ) )->$method( $args, $this->assoc );
 			return 0;
 		} catch ( ExitException $e ) {
 			return self::report( $e );
 		}
+	}
+
+	/**
+	 * Checks args and options against the method's docblock. bin/mw calls it before loading
+	 * MediaWiki, so usage errors don't need a wiki.
+	 */
+	public function validate(): void {
+		[ $command, $method, $args ] = $this->resolve( $this->args );
+		if ( $method === null || !empty( $this->assoc['help'] ) ) {
+			return;
+		}
+		$doc = ( new ReflectionMethod( $command, $method ) )->getDocComment() ?: '';
+		$problem = Synopsis::validate( Synopsis::parse( $doc ), $args, $this->assoc );
+		if ( $problem !== null ) {
+			self::error( $problem . "\nusage: " . $this->usage( $command, $method ) );
+		}
+	}
+
+	/**
+	 * The command line after the command and subcommand, as typed, minus mw's global flags.
+	 * For passing arguments on unchanged, e.g. repeated options.
+	 *
+	 * @return string[]
+	 */
+	public function rawArgs(): array {
+		[ , $method ] = $this->resolve( $this->args );
+		$skip = $method === '__invoke' ? 1 : 2;
+		$out = [];
+		foreach ( $this->tokens as $i => $token ) {
+			if ( $token === '--' ) {
+				// "--" only ends mw's own flags; what follows is passed on as-is.
+				return [ ...$out, ...array_slice( $this->tokens, $i + 1 ) ];
+			}
+			if ( preg_match( '/^--(' . implode( '|', self::GLOBAL_FLAGS ) . ')(=|$)/', $token ) ) {
+				continue;
+			}
+			if ( $skip > 0 && !str_starts_with( $token, '--' ) ) {
+				$skip--;
+				continue;
+			}
+			$out[] = $token;
+		}
+		return $out;
 	}
 
 	/**

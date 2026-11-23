@@ -83,17 +83,20 @@ class FeatureContext implements Context {
 
 	private function exec( string $command, ?string $stdin = null ): void {
 		$prefix = getenv( 'MW_CLI_EXEC' ) ?: 'docker compose exec -T -w /var/www/html wiki';
+		// stderr goes to a file: reading two pipes one after the other can deadlock.
+		$stderr = tempnam( sys_get_temp_dir(), 'mw-cli-stderr' );
 		$proc = proc_open(
 			"$prefix sh -c " . escapeshellarg( $command ),
-			[ [ 'pipe', 'r' ], [ 'pipe', 'w' ], [ 'pipe', 'w' ] ],
+			[ [ 'pipe', 'r' ], [ 'pipe', 'w' ], [ 'file', $stderr, 'w' ] ],
 			$pipes,
 			dirname( __DIR__, 2 )
 		);
 		fwrite( $pipes[0], $stdin ?? '' );
 		fclose( $pipes[0] );
 		$this->stdout = stream_get_contents( $pipes[1] );
-		$this->stderr = stream_get_contents( $pipes[2] );
 		$this->code = proc_close( $proc );
+		$this->stderr = file_get_contents( $stderr );
+		unlink( $stderr );
 	}
 
 	private function assertSame( string $expected, string $actual, string $what ): void {

@@ -40,6 +40,11 @@ class FormatterTest extends TestCase {
 		Formatter::item( self::ROWS[0], [] );
 	}
 
+	public function testPipedTableEscapesTabsAndNewlines(): void {
+		$this->expectOutputString( "a\na\\tb\\nc\\\\d\n" );
+		Formatter::items( [ [ 'a' => "a\tb\nc\\d" ] ], [], [ 'a' ] );
+	}
+
 	public function testInvalidFieldFails(): void {
 		$this->expectException( ExitException::class );
 		$this->expectExceptionMessage( 'Invalid field: nope.' );

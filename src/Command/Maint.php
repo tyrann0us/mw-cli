@@ -38,16 +38,9 @@ class Maint extends Command {
 	 * @param array<string,string|bool> $assoc_args
 	 */
 	public function __invoke( array $args, array $assoc_args ): void {
-		$options = [];
-		foreach ( $assoc_args as $key => $value ) {
-			$options[] = match ( $value ) {
-				true => "--$key",
-				false => "--no-$key",
-				default => "--$key=$value",
-			};
-		}
+		// Raw tokens, so repeated options and their order reach the script unchanged.
 		$cmd = array_map( 'escapeshellarg', [
-			PHP_BINARY, $this->cli->wikiPath() . '/maintenance/run.php', $args[0], ...$options, ...array_slice( $args, 1 ),
+			PHP_BINARY, $this->cli->wikiPath() . '/maintenance/run.php', ...$this->cli->rawArgs(),
 		] );
 		passthru( implode( ' ', $cmd ), $code );
 		if ( $code !== 0 ) {

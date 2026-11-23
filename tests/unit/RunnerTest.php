@@ -49,6 +49,11 @@ class RunnerTest extends TestCase {
 		( new Runner( [], $this->dir, null ) )->resolve( [ 'nope' ] );
 	}
 
+	public function testRawArgsKeepRepeatedOptionsAndDropGlobalFlags(): void {
+		$cli = new Runner( [ '--quiet', 'maint', 'x', '--skip=a', '--user=Bot', '--skip=b', '--', '--user=Admin' ], $this->dir, null );
+		$this->assertSame( [ 'x', '--skip=a', '--skip=b', '--user=Admin' ], $cli->rawArgs() );
+	}
+
 	public function testNoSshMeansLocalRun(): void {
 		$this->assertNull( ( new Runner( [ 'cli', 'version' ], $this->dir, null ) )->sshCommand() );
 	}
@@ -58,7 +63,7 @@ class RunnerTest extends TestCase {
 		$this->assertSame(
 			"ssh -T -p 2222 -- 'deploy@wiki.example.org' "
 				. escapeshellarg( "'mw' '--path=/var/www/w' 'page' 'get' 'It'\\''s'" ),
-			$cli->sshCommand()
+			self::ssh( $cli )
 		);
 	}
 
@@ -67,14 +72,14 @@ class RunnerTest extends TestCase {
 		$cli = new Runner( [ '@prod', 'cli', 'version' ], "$this->dir/project/sub", null );
 		$this->assertSame(
 			"ssh -T -- 'wiki.example.org' " . escapeshellarg( "'mw' '--user=Bot' '--path=/srv/w' 'cli' 'version'" ),
-			$cli->sshCommand()
+			self::ssh( $cli )
 		);
 	}
 
 	public function testCommandLineFlagsWinOverAlias(): void {
 		file_put_contents( "$this->dir/project/mw.ini", "[@prod]\nssh = wiki.example.org\npath = /srv/w\n" );
 		$cli = new Runner( [ '@prod', '--path=/other', 'cli', 'version' ], "$this->dir/project", null );
-		$this->assertStringContainsString( escapeshellarg( "'mw' '--path=/other' 'cli' 'version'" ), $cli->sshCommand() );
+		$this->assertStringContainsString( escapeshellarg( "'mw' '--path=/other' 'cli' 'version'" ), self::ssh( $cli ) );
 	}
 
 	public function testSshHostCannotStartWithDash(): void {
@@ -110,7 +115,7 @@ class RunnerTest extends TestCase {
 		file_put_contents( "$this->dir/project/mw.ini", "[@prod]\nssh = wiki.example.org\n" );
 		$cli = new Runner( [ '--quiet', '@prod', 'cli', 'version' ], "$this->dir/project", null );
 		$this->assertSame( [ 'cli', 'version' ], $cli->args );
-		$this->assertStringContainsString( 'wiki.example.org', $cli->sshCommand() );
+		$this->assertStringContainsString( 'wiki.example.org', self::ssh( $cli ) );
 	}
 
 	public function testTokensAfterDoubleDashDoNotOverrideAlias(): void {
@@ -118,7 +123,7 @@ class RunnerTest extends TestCase {
 		$cli = new Runner( [ '@prod', 'maint', 'edit', '--', '--user=Admin' ], "$this->dir/project", null );
 		$this->assertStringContainsString(
 			escapeshellarg( "'mw' '--user=Bot' '--path=/srv/w' 'maint' 'edit' '--' '--user=Admin'" ),
-			$cli->sshCommand()
+			self::ssh( $cli )
 		);
 	}
 
@@ -129,5 +134,12 @@ class RunnerTest extends TestCase {
 		file_put_contents( "$this->dir/project/includes/Defines.php", "<?php define( 'MW_VERSION', '1.43.1' );" );
 		$cli = new Runner( [ '--path=~/project' ], '/', $this->dir );
 		$this->assertSame( realpath( "$this->dir/project" ), $cli->wikiPath() );
+	}
+
+	/**
+	 * sshCommand() uses -t on a terminal; tests compare against the piped form.
+	 */
+	private static function ssh( Runner $cli ): string {
+		return preg_replace( '/^ssh -t /', 'ssh -T ', (string)$cli->sshCommand() );
 	}
 }

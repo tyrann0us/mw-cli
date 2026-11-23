@@ -22,7 +22,7 @@ abstract class Command {
 	}
 
 	/**
-	 * The user from --user (name or ID), or MediaWiki's "Maintenance script" system user.
+	 * The user from --user (name, or ID if no user has that name), or MediaWiki's "Maintenance script" system user.
 	 */
 	protected function performer(): User {
 		$name = $this->cli->flag( 'user' );
@@ -32,7 +32,10 @@ abstract class Command {
 				?? Runner::error( "Can't create the '" . User::MAINTENANCE_SCRIPT_USER . "' user." );
 		}
 		$factory = $this->services()->getUserFactory();
-		$user = ctype_digit( $name ) ? $factory->newFromId( (int)$name ) : $factory->newFromName( $name );
+		$user = $factory->newFromName( $name );
+		if ( ( $user === null || !$user->isRegistered() ) && ctype_digit( $name ) ) {
+			$user = $factory->newFromId( (int)$name );
+		}
 		if ( $user === null || !$user->isRegistered() ) {
 			Runner::error( "Invalid user '$name'." );
 		}

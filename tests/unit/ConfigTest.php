@@ -27,14 +27,26 @@ class ConfigTest extends TestCase {
 		$this->assertSame( [ "$this->dir/home/.mw/config.ini", "$this->dir/project/mw.ini" ], $files );
 		$this->assertSame( 'Project', $config['user'] );
 		$this->assertTrue( $config['quiet'] );
-		$this->assertSame( "$this->dir/project/w", $config['path'] );
+		$this->assertSame( "$this->dir/project/w", Config::resolve( $config, null, [] )['path'] );
 	}
 
 	public function testRelativeAliasPathIsRelativeToFileUnlessSsh(): void {
 		file_put_contents( "$this->dir/project/mw.ini", "[@a]\npath = w2\n[@b]\nssh = host\npath = w3\n" );
 		[ $config ] = Config::load( "$this->dir/project/sub", null );
-		$this->assertSame( "$this->dir/project/w2", $config['@a']['path'] );
-		$this->assertSame( 'w3', $config['@b']['path'] );
+		$this->assertSame( "$this->dir/project/w2", Config::resolve( $config, '@a', [] )['path'] );
+		$this->assertSame( 'w3', Config::resolve( $config, '@b', [] )['remote-path'] );
+	}
+
+	public function testSshFromGlobalConfigKeepsProjectPathRemote(): void {
+		file_put_contents( "$this->dir/home/.mw/config.ini", "[@prod]\nssh = host\n" );
+		file_put_contents( "$this->dir/project/mw.ini", "[@prod]\npath = w\n" );
+		[ $config ] = Config::load( "$this->dir/project", "$this->dir/home" );
+		$this->assertSame( 'w', Config::resolve( $config, '@prod', [] )['remote-path'] );
+	}
+
+	public function testQuietAcceptsFalseStrings(): void {
+		$this->assertFalse( Config::resolve( [], null, [ 'quiet' => 'false' ] )['quiet'] );
+		$this->assertTrue( Config::resolve( [], null, [ 'quiet' => true ] )['quiet'] );
 	}
 
 	public function testLocalAliasOverridesConfigAndFlagsOverrideAlias(): void {

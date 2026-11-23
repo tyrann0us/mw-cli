@@ -141,7 +141,9 @@ class Formatter {
 	private static function table( array $fields, array $rows ): string {
 		$cells = array_map( static fn ( $row ) => array_map( [ self::class, 'scalar' ], array_values( $row ) ), $rows );
 		if ( !stream_isatty( STDOUT ) ) {
-			$lines = array_map( static fn ( $r ) => implode( "\t", $r ), [ $fields, ...$cells ] );
+			// One record per line: escape what would split it.
+			$escape = static fn ( $c ) => strtr( $c, [ '\\' => '\\\\', "\t" => '\\t', "\n" => '\\n', "\r" => '\\r' ] );
+			$lines = array_map( static fn ( $r ) => implode( "\t", array_map( $escape, $r ) ), [ $fields, ...$cells ] );
 			return implode( "\n", $lines ) . "\n";
 		}
 		$widths = array_map( 'mb_strwidth', $fields );
