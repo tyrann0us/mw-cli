@@ -2,11 +2,7 @@ Feature: List recent changes
 
   Background:
     Given a wiki
-    And a file "/tmp/clear.sql" with:
-      """
-      DELETE FROM /*_*/recentchanges;
-      """
-    And I run "mw maint sql /tmp/clear.sql"
+    And I run "mw maint sql --query='DELETE FROM /*_*/recentchanges'"
     When I run "echo 'Hello' | mw maint edit --summary=Create Sandbox"
     And I run "echo 'Hello again' | mw maint edit --user=Admin --summary=Update Sandbox"
     And I run "echo 'Help' | mw maint edit --user=Admin Help:Intro"
@@ -51,10 +47,10 @@ Feature: List recent changes
       Help:Intro
       Sandbox
       """
-    When I run "mw recent-changes --type=edit --format=json --fields=title,revision"
+    When I run "mw recent-changes --type=edit --format=json --fields=title,type,revision"
     Then STDOUT should be like:
       """
-      [{"title":"Sandbox","revision":{id}}]
+      [{"title":"Sandbox","type":"edit","revision":{id}}]
       """
     When I run "mw recent-changes --type=new --namespace=Help --field=title"
     Then STDOUT should be:
