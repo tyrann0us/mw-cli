@@ -4,8 +4,8 @@ Feature: List recent changes
     Given a wiki
     And I run "mw maint sql --query='DELETE FROM recentchanges'"
     When I run "echo 'Hello' | mw maint edit --summary=Create Sandbox"
-    And I run "echo 'Hello again' | mw maint edit --user=Admin --summary=Update Sandbox"
-    And I run "echo 'Help' | mw maint edit --user=Admin Help:Intro"
+    And I run "echo 'Hello again' | mw maint edit -- --user=Admin --summary=Update Sandbox"
+    And I run "echo 'Help' | mw maint edit -- --user=Admin Help:Intro"
     And I run "mw maint protect --reason=Vandalism Sandbox"
 
   Scenario: Recent changes are listed newest first
@@ -95,7 +95,7 @@ Feature: List recent changes
       """
       Error: --limit must be a positive number.
       """
-    When I try "mw recent-changes --by"
+    When I try "mw recent-changes --by="
     Then STDERR should contain:
       """
       Error: --by needs a value.

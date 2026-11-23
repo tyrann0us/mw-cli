@@ -54,8 +54,8 @@ class RecentChanges extends Command {
 	 * @param array<string,string|bool> $assoc_args
 	 */
 	public function __invoke( array $args, array $assoc_args ): void {
-		$limit = $assoc_args['limit'] ?? '50';
-		if ( !is_string( $limit ) || !ctype_digit( $limit ) || (int)$limit < 1 ) {
+		$limit = (string)( $assoc_args['limit'] ?? '50' );
+		if ( !ctype_digit( $limit ) || (int)$limit < 1 ) {
 			Runner::error( '--limit must be a positive number.' );
 		}
 		$dbr = $this->services()->getConnectionProvider()->getReplicaDatabase();
@@ -73,13 +73,13 @@ class RecentChanges extends Command {
 		if ( isset( $assoc_args['namespace'] ) ) {
 			// Skip log entries with a hidden target, or the filter would reveal their namespace.
 			$query->andWhere( [
-				'rc_namespace' => $this->namespace( $assoc_args['namespace'] ),
+				'rc_namespace' => $this->namespace( (string)$assoc_args['namespace'] ),
 				'rc_log_type IS NULL OR ' . $dbr->bitAnd( 'rc_deleted', self::DELETED_ACTION ) . ' = 0',
 			] );
 		}
 		if ( isset( $assoc_args['by'] ) ) {
-			$by = $assoc_args['by'];
-			if ( !is_string( $by ) || $by === '' ) {
+			$by = (string)$assoc_args['by'];
+			if ( $by === '' ) {
 				Runner::error( '--by needs a value.' );
 			}
 			$name = $this->services()->getUserNameUtils()->getCanonical( $by, UserNameUtils::RIGOR_NONE ) ?: $by;

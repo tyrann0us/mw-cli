@@ -58,7 +58,7 @@ class Backlinks extends Command {
 			->orderBy( [ 'page_namespace', 'page_title' ] )
 			->caller( __METHOD__ );
 		if ( isset( $assoc_args['namespace'] ) ) {
-			$query->andWhere( [ static::FROM . '_namespace' => $this->namespace( $assoc_args['namespace'] ) ] );
+			$query->andWhere( [ static::FROM . '_namespace' => $this->namespace( (string)$assoc_args['namespace'] ) ] );
 		}
 
 		$formatter = $this->services()->getTitleFormatter();

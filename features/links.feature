@@ -76,15 +76,15 @@ Feature: List pages that link to or transclude a page
     Then the return code should be 1
     And STDERR should contain:
       """
-      Error: Unknown namespace: Nope.
+      Error: Unknown namespace 'Nope'.
       """
     When I try "mw backlinks Target --namespace=99"
     Then STDERR should contain:
       """
-      Error: Unknown namespace: 99.
+      Error: Unknown namespace '99'.
       """
     When I try "mw backlinks Target --namespace="
     Then STDERR should contain:
       """
-      Error: --namespace needs a value.
+      Error: Unknown namespace ''.
       """
