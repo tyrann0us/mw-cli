@@ -63,8 +63,8 @@
             "behat"
         ],
         "phpstan": [
-            "phpstan analyse --memory-limit=2G",
-            "phpstan analyse --memory-limit=2G -c phpstan-mw146.neon.dist"
+            "phpstan analyse --memory-limit=1G",
+            "phpstan analyse --memory-limit=1G -c phpstan-mw146.neon.dist"
         ]
     },
     "config": {

@@ -602,7 +602,7 @@
                 "url": "https://github.com/wikimedia/mediawiki/archive/refs/tags/1.43.12.zip"
             },
             "type": "library",
-            "description": "MediaWiki source for static analysis only."
+            "description": "MediaWiki 1.43 source for static analysis only."
         },
         {
             "name": "mediawiki/core-1.46",

@@ -2,6 +2,8 @@
 includes:
   - phpstan-base.neon
 parameters:
+  # Own cache, so running both configs doesn't invalidate the other's.
+  resultCachePath: %tmpDir%/resultCache-mw146.php
   scanDirectories:
     - vendor/mediawiki/core-1.46/includes
     - vendor/mediawiki/core-1.46/maintenance/includes

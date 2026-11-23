@@ -29,6 +29,7 @@ class Runner {
 	private array $tokens = [];
 	private string $cwd;
 	private ?string $home;
+	private ?string $wikiPath = null;
 
 	/**
 	 * @param string[] $argv
@@ -128,9 +129,12 @@ class Runner {
 	}
 
 	/**
-	 * MediaWiki root from --path, or the nearest parent of the cwd that is one.
+	 * MediaWiki root from --path, or the nearest parent of the cwd that is one. Looked up once.
 	 */
 	public function wikiPath(): string {
+		if ( $this->wikiPath !== null ) {
+			return $this->wikiPath;
+		}
 		$path = $this->flag( 'path' );
 		if ( $path !== null ) {
 			if ( $this->home !== null && preg_match( '#^~(/|$)#', $path ) ) {
@@ -153,6 +157,7 @@ class Runner {
 		if ( version_compare( $m[1] ?? '0', '1.43', '<' ) ) {
 			self::error( 'mw needs MediaWiki 1.43 or later, found ' . ( $m[1] ?? 'unknown' ) . '.' );
 		}
+		$this->wikiPath = $path;
 		return $path;
 	}
 
