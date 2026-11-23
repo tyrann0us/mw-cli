@@ -7,12 +7,13 @@ namespace MwCli;
  */
 class Formatter {
 	public const FORMATS = [ 'table', 'json', 'csv', 'yaml', 'ids', 'count' ];
+	private const JSON = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR;
 
 	/**
 	 * A list of records.
 	 *
 	 * @param array<array<string,mixed>> $rows
-	 * @param array $assoc
+	 * @param array<string,string|bool> $assoc
 	 * @param string[] $defaultFields Shown unless --fields is passed.
 	 */
 	public static function items( array $rows, array $assoc, array $defaultFields ): void {
@@ -20,17 +21,17 @@ class Formatter {
 		$rows = array_map( static fn ( $row ) => self::pick( $row, $fields ), array_values( $rows ) );
 		if ( isset( $assoc['field'] ) ) {
 			foreach ( $rows as $row ) {
-				echo self::scalar( $row[$assoc['field']] ), "\n";
+				echo self::scalar( $row[$fields[0]] ), "\n";
 			}
 			return;
 		}
 
 		switch ( self::format( $assoc ) ) {
 			case 'json':
-				echo json_encode( $rows, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ), "\n";
+				echo json_encode( $rows, self::JSON ), "\n";
 				break;
 			case 'csv':
-				$out = fopen( 'php://output', 'w' );
+				$out = fopen( 'php://output', 'w' ) ?: Runner::error( "Can't write to stdout." );
 				fputcsv( $out, $fields, ',', '"', '' );
 				foreach ( $rows as $row ) {
 					fputcsv( $out, array_map( [ self::class, 'scalar' ], $row ), ',', '"', '' );
@@ -55,17 +56,18 @@ class Formatter {
 	 * A single record. The table format prints it as Field/Value rows.
 	 *
 	 * @param array<string,mixed> $row
+	 * @param array<string,string|bool> $assoc
 	 */
 	public static function item( array $row, array $assoc ): void {
 		$fields = self::fields( $assoc, array_keys( $row ), $row );
 		$row = self::pick( $row, $fields );
 		if ( isset( $assoc['field'] ) ) {
-			echo self::scalar( $row[$assoc['field']] ), "\n";
+			echo self::scalar( $row[$fields[0]] ), "\n";
 			return;
 		}
 		switch ( self::format( $assoc, [ 'table', 'json', 'yaml' ] ) ) {
 			case 'json':
-				echo json_encode( $row, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ), "\n";
+				echo json_encode( $row, self::JSON ), "\n";
 				break;
 			case 'yaml':
 				echo self::yaml( $row );
@@ -79,14 +81,24 @@ class Formatter {
 		}
 	}
 
+	/**
+	 * @param array<string,string|bool> $assoc
+	 * @param string[] $allowed
+	 */
 	private static function format( array $assoc, array $allowed = self::FORMATS ): string {
 		$format = $assoc['format'] ?? 'table';
-		if ( !in_array( $format, $allowed, true ) ) {
-			Runner::error( "Invalid format '$format'. Use one of: " . implode( ', ', $allowed ) . '.' );
+		if ( !is_string( $format ) || !in_array( $format, $allowed, true ) ) {
+			Runner::error( 'Invalid format. Use one of: ' . implode( ', ', $allowed ) . '.' );
 		}
 		return $format;
 	}
 
+	/**
+	 * @param array<string,string|bool> $assoc
+	 * @param string[] $defaults
+	 * @param array<string,mixed>|null $sample A row to check the requested fields against.
+	 * @return string[]
+	 */
 	private static function fields( array $assoc, array $defaults, ?array $sample ): array {
 		if ( isset( $assoc['field'] ) ) {
 			$fields = [ (string)$assoc['field'] ];
@@ -102,6 +114,11 @@ class Formatter {
 		return $fields;
 	}
 
+	/**
+	 * @param array<string,mixed> $row
+	 * @param string[] $fields
+	 * @return array<string,mixed>
+	 */
 	private static function pick( array $row, array $fields ): array {
 		return array_merge( array_fill_keys( $fields, null ), array_intersect_key( $row, array_flip( $fields ) ) );
 	}
@@ -111,12 +128,15 @@ class Formatter {
 			$value === null => '',
 			is_bool( $value ) => $value ? 'true' : 'false',
 			is_scalar( $value ) => (string)$value,
-			default => json_encode( $value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ),
+			default => json_encode( $value, self::JSON ),
 		};
 	}
 
 	/**
 	 * A box table on a terminal, tab-separated values when piped.
+	 *
+	 * @param string[] $fields
+	 * @param array<array<string,mixed>> $rows
 	 */
 	private static function table( array $fields, array $rows ): string {
 		$cells = array_map( static fn ( $row ) => array_map( [ self::class, 'scalar' ], array_values( $row ) ), $rows );
@@ -143,13 +163,15 @@ class Formatter {
 
 	/**
 	 * Block YAML. Values are written as JSON scalars, which YAML reads unchanged.
+	 *
+	 * @param array<string,mixed>|list<array<string,mixed>> $data
 	 */
 	private static function yaml( array $data ): string {
 		$out = "---\n";
 		$map = static function ( array $row, string $indent ): string {
 			$s = '';
 			foreach ( $row as $k => $v ) {
-				$s .= "$indent$k: " . json_encode( $v, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) . "\n";
+				$s .= "$indent$k: " . json_encode( $v, self::JSON ) . "\n";
 			}
 			return $s;
 		};

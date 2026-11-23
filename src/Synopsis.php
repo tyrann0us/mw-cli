@@ -5,14 +5,22 @@ namespace MwCli;
 /**
  * Reads the docblock of a command method: summary, "## OPTIONS" tokens
  * (`<arg>`, `[<arg>...]`, `--key=<value>`, `[--flag]`, `[--<field>=<value>]`) and the text for help.
+ * Lines from the first @-tag on (e.g. @param) are left out.
+ *
+ * @phpstan-type SynopsisData array{summary: string, text: string, synopsis: string, positional: list<array{name: string, optional: bool, repeating: bool}>, assoc: array<string,bool>, generic: bool}
  */
 class Synopsis {
 	/**
-	 * @return array{summary: string, text: string, synopsis: string, positional: list<array{name: string, optional: bool, repeating: bool}>, assoc: array<string,bool>, generic: bool}
-	 *   assoc maps option name to "required".
+	 * @return SynopsisData The assoc key maps option name to "required".
 	 */
 	public static function parse( string $doc ): array {
-		$lines = preg_replace( '#^\s*(/\*\*|\*/|\* ?)#', '', explode( "\n", $doc ) );
+		$lines = preg_replace( '#^\s*(/\*\*|\*/|\* ?)#', '', explode( "\n", $doc ) ) ?? [];
+		foreach ( $lines as $i => $line ) {
+			if ( str_starts_with( $line, '@' ) ) {
+				$lines = array_slice( $lines, 0, $i );
+				break;
+			}
+		}
 		$text = trim( implode( "\n", $lines ) );
 		$out = [
 			'summary' => trim( strtok( $text, "\n" ) ?: '' ),
@@ -42,15 +50,16 @@ class Synopsis {
 	}
 
 	/**
+	 * @param SynopsisData $synopsis
+	 * @param string[] $args
+	 * @param array<string,string|bool> $assoc
 	 * @return string|null What's wrong with the arguments, or null if they fit.
 	 */
 	public static function validate( array $synopsis, array $args, array $assoc ): ?string {
-		$required = 0;
-		$max = 0;
-		foreach ( $synopsis['positional'] as $p ) {
-			$required += $p['optional'] ? 0 : 1;
-			$max = $p['repeating'] || $max === PHP_INT_MAX ? PHP_INT_MAX : $max + 1;
-		}
+		$required = count( array_filter( $synopsis['positional'], static fn ( $p ) => !$p['optional'] ) );
+		$max = in_array( true, array_column( $synopsis['positional'], 'repeating' ), true )
+			? PHP_INT_MAX
+			: count( $synopsis['positional'] );
 		if ( count( $args ) < $required ) {
 			$missing = array_column( array_slice( $synopsis['positional'], count( $args ), $required - count( $args ) ), 'name' );
 			return 'Missing argument: ' . implode( ', ', $missing ) . '.';

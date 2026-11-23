@@ -9,7 +9,7 @@ namespace MwCli;
  */
 class Config {
 	/**
-	 * @return array{0: array, 1: string[]} Merged config and the files that were read.
+	 * @return array{0: array<string,mixed>, 1: string[]} Merged config and the files that were read.
 	 */
 	public static function load( string $cwd, ?string $home ): array {
 		$files = [];
@@ -52,6 +52,11 @@ class Config {
 	/**
 	 * Applies config, then the alias section, then CLI flags. An alias with "ssh" points to
 	 * another host, so its path and user become remote-path and remote-user for that host.
+	 *
+	 * @param array<string,mixed> $config
+	 * @param string|null $alias
+	 * @param array<string,string|bool> $flags
+	 * @return array<string,string|bool>
 	 */
 	public static function resolve( array $config, ?string $alias, array $flags ): array {
 		$global = array_intersect_key(
@@ -76,16 +81,16 @@ class Config {
 			$global = array_replace( $global, $section );
 		}
 
-		$global = array_replace( $global, $flags );
-		foreach ( [ 'path', 'ssh', 'user', 'remote-path', 'remote-user' ] as $key ) {
-			if ( !isset( $global[$key] ) ) {
-				continue;
-			}
-			if ( is_bool( $global[$key] ) || $global[$key] === '' ) {
+		$out = [];
+		foreach ( array_replace( $global, $flags ) as $key => $value ) {
+			if ( $key === 'quiet' ) {
+				$out[$key] = (bool)$value;
+			} elseif ( is_bool( $value ) || $value === '' || !is_scalar( $value ) ) {
 				Runner::error( "--$key needs a value." );
+			} else {
+				$out[$key] = (string)$value;
 			}
-			$global[$key] = (string)$global[$key];
 		}
-		return $global;
+		return $out;
 	}
 }

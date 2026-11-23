@@ -25,16 +25,15 @@ abstract class Command {
 	 * The user from --user (name or ID), or MediaWiki's "Maintenance script" system user.
 	 */
 	protected function performer(): User {
-		$name = $this->cli->global['user'] ?? null;
+		$name = $this->cli->flag( 'user' );
 		if ( $name === null ) {
 			// No service replaces this in 1.43, and it isn't deprecated.
-			return User::newSystemUser( User::MAINTENANCE_SCRIPT_USER, [ 'steal' => true ] );
+			return User::newSystemUser( User::MAINTENANCE_SCRIPT_USER, [ 'steal' => true ] )
+				?? Runner::error( "Can't create the '" . User::MAINTENANCE_SCRIPT_USER . "' user." );
 		}
 		$factory = $this->services()->getUserFactory();
-		$user = ctype_digit( (string)$name )
-			? $factory->newFromId( (int)$name )
-			: $factory->newFromName( (string)$name );
-		if ( !$user || !$user->isRegistered() ) {
+		$user = ctype_digit( $name ) ? $factory->newFromId( (int)$name ) : $factory->newFromName( $name );
+		if ( $user === null || !$user->isRegistered() ) {
 			Runner::error( "Invalid user '$name'." );
 		}
 		return $user;

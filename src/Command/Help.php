@@ -25,6 +25,9 @@ class Help extends Command {
 	 * ## EXAMPLES
 	 *
 	 *     mw help page get
+	 *
+	 * @param string[] $args
+	 * @param array<string,string|bool> $assoc_args
 	 */
 	public function __invoke( array $args, array $assoc_args ): void {
 		if ( !$args ) {
@@ -56,8 +59,11 @@ class Help extends Command {
 		Runner::line( trim( $body ) );
 	}
 
+	/**
+	 * @param array<string,string> $items Name to summary.
+	 */
 	private function list( array $items ): void {
-		$width = max( array_map( 'strlen', array_keys( $items ) ) );
+		$width = max( 0, ...array_map( 'strlen', array_keys( $items ) ) );
 		foreach ( $items as $name => $summary ) {
 			Runner::line( '  ' . str_pad( $name, $width + 2 ) . $summary );
 		}

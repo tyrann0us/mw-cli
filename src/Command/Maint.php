@@ -33,6 +33,9 @@ class Maint extends Command {
 	 *
 	 *     mw maint runJobs --maxjobs=100
 	 *     mw maint edit -- --user=Admin Main_Page
+	 *
+	 * @param string[] $args
+	 * @param array<string,string|bool> $assoc_args
 	 */
 	public function __invoke( array $args, array $assoc_args ): void {
 		$options = [];
@@ -43,8 +46,9 @@ class Maint extends Command {
 				default => "--$key=$value",
 			};
 		}
+		[ $script, $scriptArgs ] = [ $args[0], array_slice( $args, 1 ) ];
 		$cmd = array_map( 'escapeshellarg', [
-			PHP_BINARY, $this->cli->wikiPath() . '/maintenance/run.php', array_shift( $args ), ...$options, ...$args,
+			PHP_BINARY, $this->cli->wikiPath() . '/maintenance/run.php', $script, ...$options, ...$scriptArgs,
 		] );
 		passthru( implode( ' ', $cmd ), $code );
 		if ( $code !== 0 ) {

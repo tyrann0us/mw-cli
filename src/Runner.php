@@ -31,12 +31,17 @@ class Runner {
 	private string $cwd;
 	private ?string $home;
 
+	/**
+	 * @param string[] $argv
+	 */
 	public function __construct( array $argv, string $cwd, ?string $home ) {
 		$this->cwd = $cwd;
 		$this->home = $home;
-		foreach ( glob( __DIR__ . '/Command/*.php' ) as $file ) {
-			$class = basename( $file, '.php' );
-			$this->commands[self::kebab( $class )] = __NAMESPACE__ . '\\Command\\' . $class;
+		foreach ( glob( __DIR__ . '/Command/*.php' ) ?: [] as $file ) {
+			$class = __NAMESPACE__ . '\\Command\\' . basename( $file, '.php' );
+			if ( is_subclass_of( $class, Command::class ) ) {
+				$this->commands[self::kebab( basename( $file, '.php' ) )] = $class;
+			}
 		}
 
 		// The alias is the first positional token, so global flags may come before it.
@@ -63,6 +68,7 @@ class Runner {
 	/**
 	 * --key=value, --flag (true), --no-flag (false), everything after -- is positional.
 	 *
+	 * @param string[] $argv
 	 * @return array{0: string[], 1: array<string,string|bool>}
 	 */
 	public static function parseArgv( array $argv ): array {
@@ -91,7 +97,7 @@ class Runner {
 	 * The ssh command line that runs this invocation on the remote host, or null for a local run.
 	 */
 	public function sshCommand(): ?string {
-		$ssh = $this->global['ssh'] ?? null;
+		$ssh = $this->flag( 'ssh' );
 		if ( $ssh === null ) {
 			return null;
 		}
@@ -100,15 +106,15 @@ class Runner {
 			self::error( "Invalid --ssh value '$ssh'. Expected [user@]host[:port][/path]." );
 		}
 		$target = ( $m[1] !== '' ? "$m[1]@" : '' ) . $m[2];
-		$path = ( $m[4] ?? '' ) !== '' ? $m[4] : ( $this->global['remote-path'] ?? null );
+		$path = ( $m[4] ?? '' ) !== '' ? $m[4] : $this->flag( 'remote-path' );
 
 		// Flags given on the command line are forwarded as-is and win over the alias.
 		// Tokens after "--" belong to the command (e.g. a maintenance script), not to mw.
 		$end = array_search( '--', $this->tokens, true );
-		$own = $end === false ? $this->tokens : array_slice( $this->tokens, 0, $end );
-		$rest = $end === false ? [] : array_slice( $this->tokens, $end );
-		$forward = [ ...preg_grep( '/^--ssh(=|$)/', $own, PREG_GREP_INVERT ), ...$rest ];
-		foreach ( [ 'path' => $path, 'user' => $this->global['remote-user'] ?? null ] as $key => $value ) {
+		$end = is_int( $end ) ? $end : count( $this->tokens );
+		$own = array_slice( $this->tokens, 0, $end );
+		$forward = [ ...preg_grep( '/^--ssh(=|$)/', $own, PREG_GREP_INVERT ) ?: [], ...array_slice( $this->tokens, $end ) ];
+		foreach ( [ 'path' => $path, 'user' => $this->flag( 'remote-user' ) ] as $key => $value ) {
 			if ( $value !== null && !preg_grep( "/^--$key(=|$)/", $own ) ) {
 				array_unshift( $forward, "--$key=$value" );
 			}
@@ -129,7 +135,7 @@ class Runner {
 	 * MediaWiki root from --path, or the nearest parent of the cwd that is one.
 	 */
 	public function wikiPath(): string {
-		$path = $this->global['path'] ?? null;
+		$path = $this->flag( 'path' );
 		if ( $path !== null ) {
 			if ( $this->home !== null && preg_match( '#^~(/|$)#', $path ) ) {
 				$path = $this->home . substr( $path, 1 );
@@ -145,13 +151,21 @@ class Runner {
 				}
 			}
 		}
-		$path = realpath( $path );
+		$path = realpath( $path ) ?: $path;
 
-		preg_match( "/define\( 'MW_VERSION', '([^']+)'/", file_get_contents( "$path/includes/Defines.php" ), $m );
+		preg_match( "/define\( 'MW_VERSION', '([^']+)'/", (string)file_get_contents( "$path/includes/Defines.php" ), $m );
 		if ( version_compare( $m[1] ?? '0', '1.43', '<' ) ) {
 			self::error( 'mw needs MediaWiki 1.43 or later, found ' . ( $m[1] ?? 'unknown' ) . '.' );
 		}
 		return $path;
+	}
+
+	/**
+	 * A global flag. Config::resolve() made sure path, ssh, user and their remote- forms are strings.
+	 */
+	public function flag( string $key ): ?string {
+		$value = $this->global[$key] ?? null;
+		return is_string( $value ) ? $value : null;
 	}
 
 	private static function isWiki( string $dir ): bool {
@@ -181,6 +195,7 @@ class Runner {
 	}
 
 	/**
+	 * @param string[] $args
 	 * @return array{0: class-string<Command>, 1: ?string, 2: string[]} Class, method (null: show help), args.
 	 */
 	public function resolve( array $args ): array {
@@ -204,6 +219,7 @@ class Runner {
 	}
 
 	/**
+	 * @param class-string $class
 	 * @return string[] Public methods that are subcommands.
 	 */
 	public static function subcommands( string $class ): array {
@@ -227,7 +243,7 @@ class Runner {
 	 * SearchReplace or searchReplace to search-replace.
 	 */
 	public static function kebab( string $name ): string {
-		return strtolower( preg_replace( '/(?<!^)[A-Z]/', '-$0', $name ) );
+		return strtolower( (string)preg_replace( '/(?<!^)[A-Z]/', '-$0', $name ) );
 	}
 
 	public static function report( ExitException $e ): int {
@@ -253,15 +269,15 @@ class Runner {
 		}
 	}
 
-	/**
-	 * @return never
-	 */
-	public static function error( string $message, int $code = 1 ): void {
+	public static function error( string $message, int $code = 1 ): never {
 		throw new ExitException( $message, $code );
 	}
 
 	/**
 	 * Asks for a yes/no answer unless --yes was passed. Exits quietly with 0 on anything but "y".
+	 *
+	 * @param string $question
+	 * @param array<string,string|bool> $assoc
 	 */
 	public static function confirm( string $question, array $assoc ): void {
 		if ( !empty( $assoc['yes'] ) ) {

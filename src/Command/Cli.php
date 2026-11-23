@@ -18,6 +18,9 @@ class Cli extends Command {
 	 * ## EXAMPLES
 	 *
 	 *     mw cli version
+	 *
+	 * @param string[] $args
+	 * @param array<string,string|bool> $assoc_args
 	 */
 	public function version( array $args, array $assoc_args ): void {
 		Runner::line( 'mw ' . Runner::VERSION );
@@ -34,6 +37,9 @@ class Cli extends Command {
 	 * ## EXAMPLES
 	 *
 	 *     mw cli info --format=json
+	 *
+	 * @param string[] $args
+	 * @param array<string,string|bool> $assoc_args
 	 */
 	public function info( array $args, array $assoc_args ): void {
 		Formatter::item( [

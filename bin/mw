@@ -12,7 +12,8 @@ spl_autoload_register( static function ( string $class ): void {
 } );
 
 try {
-	$mwCli = new MwCli\Runner( array_slice( $_SERVER['argv'], 1 ), getcwd(), getenv( 'HOME' ) ?: null );
+	$cwd = getcwd() ?: MwCli\Runner::error( "Can't read the current directory." );
+	$mwCli = new MwCli\Runner( array_slice( $_SERVER['argv'], 1 ), $cwd, getenv( 'HOME' ) ?: null );
 	$ssh = $mwCli->sshCommand();
 	if ( $ssh !== null ) {
 		passthru( $ssh, $code );

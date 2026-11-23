@@ -28,6 +28,9 @@ class SynopsisTest extends TestCase {
 		 *
 		 * [--yes]
 		 * : Skip confirmation.
+		 *
+		 * @param string[] $args
+		 * --ignored
 		 */
 		DOC;
 
@@ -42,6 +45,7 @@ class SynopsisTest extends TestCase {
 		], $s['positional'] );
 		$this->assertFalse( $s['generic'] );
 		$this->assertStringStartsWith( "Gets a page.\n\nMore text.", $s['text'] );
+		$this->assertStringEndsWith( ': Skip confirmation.', $s['text'] );
 	}
 
 	public function testValidate(): void {
