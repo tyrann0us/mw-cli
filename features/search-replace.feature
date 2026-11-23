@@ -129,7 +129,8 @@ Feature: Search and replace text in many pages
       Error: Unknown namespace 'Nope'.
       """
     When I try "mw search-replace '/a/' x --namespace="
-    Then STDERR should contain:
+    Then the return code should be 1
+    And STDERR should contain:
       """
       Error: --namespace needs a value.
       """

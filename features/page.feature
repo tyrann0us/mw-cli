@@ -207,6 +207,12 @@ Feature: Read, edit and manage pages
       """
       Error: Unknown namespace 'Nope'.
       """
+    When I try "mw page list --namespace="
+    Then the return code should be 1
+    And STDERR should contain:
+      """
+      Error: --namespace needs a value.
+      """
 
   Scenario: Delete asks for confirmation
     When I run "echo a | mw page put Foo"
