@@ -11,7 +11,7 @@ use ReflectionMethod;
  */
 class Runner {
 	public const VERSION = '0.1.0';
-	public const GLOBAL_FLAGS = [ 'path', 'ssh', 'user', 'quiet' ];
+	public const GLOBAL_FLAGS = [ 'path', 'ssh' ];
 
 	/** @var array<string,class-string<Command>> */
 	public array $commands = [];
@@ -112,10 +112,8 @@ class Runner {
 		$end = is_int( $end ) ? $end : count( $this->tokens );
 		$own = array_slice( $this->tokens, 0, $end );
 		$forward = [ ...preg_grep( '/^--ssh(=|$)/', $own, PREG_GREP_INVERT ) ?: [], ...array_slice( $this->tokens, $end ) ];
-		foreach ( [ 'path' => $path, 'user' => $this->flag( 'remote-user' ) ] as $key => $value ) {
-			if ( $value !== null && !preg_grep( "/^--$key(=|$)/", $own ) ) {
-				array_unshift( $forward, "--$key=$value" );
-			}
+		if ( $path !== null && !preg_grep( '/^--path(=|$)/', $own ) ) {
+			array_unshift( $forward, "--path=$path" );
 		}
 
 		$remote = implode( ' ', array_map( 'escapeshellarg', [ 'mw', ...$forward ] ) );
@@ -159,7 +157,7 @@ class Runner {
 	}
 
 	/**
-	 * A global flag. Config::resolve() made sure path, ssh, user and their remote- forms are strings.
+	 * A global flag. Config::resolve() made sure path, ssh and remote-path are strings.
 	 */
 	public function flag( string $key ): ?string {
 		$value = $this->global[$key] ?? null;

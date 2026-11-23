@@ -25,8 +25,8 @@ class RunnerTest extends TestCase {
 	}
 
 	public function testGlobalFlagsAreSeparatedFromCommandOptions(): void {
-		$cli = new Runner( [ 'page', 'list', '--user=Admin', '--format=ids' ], $this->dir, null );
-		$this->assertSame( 'Admin', $cli->global['user'] );
+		$cli = new Runner( [ 'page', 'list', '--path=/w', '--format=ids' ], $this->dir, null );
+		$this->assertSame( '/w', $cli->global['path'] );
 		$this->assertSame( [ 'format' => 'ids' ], $cli->assoc );
 	}
 
@@ -45,6 +45,7 @@ class RunnerTest extends TestCase {
 
 	public function testValidateSkipsHelpAndRejectsBadArgs(): void {
 		( new Runner( [ 'cli', 'version', '--nope', '--help' ], $this->dir, null ) )->validate();
+		$this->expectException( ExitException::class );
 		$this->expectExceptionMessage( "Unknown parameter: --nope.\nusage: mw cli version" );
 		( new Runner( [ 'cli', 'version', '--nope' ], $this->dir, null ) )->validate();
 	}
@@ -56,8 +57,8 @@ class RunnerTest extends TestCase {
 	}
 
 	public function testRawArgsKeepRepeatedOptionsAndDropGlobalFlags(): void {
-		$cli = new Runner( [ '--quiet', 'maint', 'x', '--skip=a', '--user=Bot', '--skip=b', '--', '--user=Admin' ], $this->dir, null );
-		$this->assertSame( [ 'x', '--skip=a', '--skip=b', '--user=Admin' ], $cli->rawArgs() );
+		$cli = new Runner( [ '--path=/w', 'maint', 'x', '--skip=a', '--user=Bot', '--skip=b', '--', '--path=y' ], $this->dir, null );
+		$this->assertSame( [ 'x', '--skip=a', '--user=Bot', '--skip=b', '--path=y' ], $cli->rawArgs() );
 	}
 
 	public function testNoSshMeansLocalRun(): void {
@@ -77,7 +78,7 @@ class RunnerTest extends TestCase {
 		file_put_contents( "$this->dir/project/mw.ini", "path = w\n[@prod]\nssh = wiki.example.org\npath = /srv/w\nuser = Bot\n" );
 		$cli = new Runner( [ '@prod', 'cli', 'version' ], "$this->dir/project/sub", null );
 		$this->assertSame(
-			"ssh -T -- 'wiki.example.org' " . escapeshellarg( "'mw' '--user=Bot' '--path=/srv/w' 'cli' 'version'" ),
+			"ssh -T -- 'wiki.example.org' " . escapeshellarg( "'mw' '--path=/srv/w' 'cli' 'version'" ),
 			self::ssh( $cli )
 		);
 	}
@@ -102,12 +103,13 @@ class RunnerTest extends TestCase {
 		$this->assertSame( realpath( $wiki ), ( new Runner( [], "$wiki/sub", null ) )->wikiPath() );
 
 		file_put_contents( "$wiki/includes/Defines.php", "<?php define( 'MW_VERSION', '1.42.3' );" );
+		$this->expectException( ExitException::class );
 		$this->expectExceptionMessage( 'needs MediaWiki 1.43 or later, found 1.42.3' );
 		( new Runner( [], "$wiki/sub", null ) )->wikiPath();
 	}
 
 	public function testFlagsWithoutValueFail(): void {
-		foreach ( [ '--user', '--ssh', '--path' ] as $flag ) {
+		foreach ( [ '--ssh', '--path' ] as $flag ) {
 			try {
 				new Runner( [ 'cli', 'info', $flag ], $this->dir, null );
 				$this->fail( "$flag without value was accepted" );
@@ -119,21 +121,22 @@ class RunnerTest extends TestCase {
 
 	public function testAliasMayFollowGlobalFlags(): void {
 		file_put_contents( "$this->dir/project/mw.ini", "[@prod]\nssh = wiki.example.org\n" );
-		$cli = new Runner( [ '--quiet', '@prod', 'cli', 'version' ], "$this->dir/project", null );
+		$cli = new Runner( [ '--path=/srv', '@prod', 'cli', 'version' ], "$this->dir/project", null );
 		$this->assertSame( [ 'cli', 'version' ], $cli->args );
 		$this->assertStringContainsString( 'wiki.example.org', self::ssh( $cli ) );
 	}
 
 	public function testTokensAfterDoubleDashDoNotOverrideAlias(): void {
 		file_put_contents( "$this->dir/project/mw.ini", "[@prod]\nssh = wiki.example.org\npath = /srv/w\nuser = Bot\n" );
-		$cli = new Runner( [ '@prod', 'maint', 'edit', '--', '--user=Admin' ], "$this->dir/project", null );
+		$cli = new Runner( [ '@prod', 'maint', 'edit', '--', '--path=x' ], "$this->dir/project", null );
 		$this->assertStringContainsString(
-			escapeshellarg( "'mw' '--user=Bot' '--path=/srv/w' 'maint' 'edit' '--' '--user=Admin'" ),
+			escapeshellarg( "'mw' '--path=/srv/w' 'maint' 'edit' '--' '--path=x'" ),
 			self::ssh( $cli )
 		);
 	}
 
 	public function testPathWithoutWikiFails(): void {
+		$this->expectException( ExitException::class );
 		$this->expectExceptionMessage( "No MediaWiki installation found in '$this->dir/project'." );
 		( new Runner( [ '--path=project' ], $this->dir, null ) )->wikiPath();
 	}

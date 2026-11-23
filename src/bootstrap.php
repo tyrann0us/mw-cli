@@ -25,6 +25,7 @@ $runner->defineSettings();
 
 if ( !defined( 'MW_FINAL_SETUP_CALLBACK' ) ) {
 	function wfMwCliSetup( SettingsBuilder $settingsBuilder ): void {
+		// Same global name as maintenance/run.php uses for its runner.
 		$GLOBALS['runner']->setup( $settingsBuilder );
 	}
 

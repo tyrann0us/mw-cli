@@ -48,7 +48,7 @@ class Config {
 
 	/**
 	 * Applies config, then the alias section, then CLI flags. An alias with "ssh" points to
-	 * another host, so its path and user become remote-path and remote-user for that host.
+	 * another host, so its path becomes remote-path for that host.
 	 *
 	 * @param array<string,mixed> $config
 	 * @param string|null $alias
@@ -71,11 +71,9 @@ class Config {
 				array_flip( Runner::GLOBAL_FLAGS )
 			);
 			if ( isset( $section['ssh'] ) ) {
-				foreach ( [ 'path', 'user' ] as $key ) {
-					if ( isset( $section[$key] ) ) {
-						$global["remote-$key"] = $section[$key];
-						unset( $section[$key] );
-					}
+				if ( isset( $section['path'] ) ) {
+					$global['remote-path'] = $section['path'];
+					unset( $section['path'] );
 				}
 			}
 			$global = array_replace( $global, $section );
@@ -83,9 +81,7 @@ class Config {
 
 		$out = [];
 		foreach ( array_replace( $global, $flags ) as $key => $value ) {
-			if ( $key === 'quiet' ) {
-				$out[$key] = is_string( $value ) ? filter_var( $value, FILTER_VALIDATE_BOOLEAN ) : (bool)$value;
-			} elseif ( is_bool( $value ) || $value === '' || !is_scalar( $value ) ) {
+			if ( is_bool( $value ) || $value === '' || !is_scalar( $value ) ) {
 				Runner::error( "--$key needs a value." );
 			} else {
 				$out[$key] = (string)$value;

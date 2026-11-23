@@ -31,7 +31,7 @@ class Help extends Command {
 	 */
 	public function __invoke( array $args, array $assoc_args ): void {
 		if ( !$args ) {
-			Runner::line( "usage: mw [@<alias>] [--path=<path>] [--ssh=<host>] [--user=<user>] [--quiet] <command>\n" );
+			Runner::line( "usage: mw [@<alias>] [--path=<path>] [--ssh=<host>] <command>\n" );
 			Runner::line( 'Commands:' );
 			$this->list( array_map( fn ( $class ) => self::summary( new ReflectionClass( $class ) ), $this->cli->commands ) );
 			Runner::line( "\nSee 'mw help <command>' for more information on a specific command." );

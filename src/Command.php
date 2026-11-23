@@ -19,5 +19,4 @@ abstract class Command {
 	protected function services(): MediaWikiServices {
 		return MediaWikiServices::getInstance();
 	}
-
 }

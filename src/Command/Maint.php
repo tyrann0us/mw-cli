@@ -16,7 +16,7 @@ class Maint extends Command {
 	 * Runs a MediaWiki maintenance script through maintenance/run.php.
 	 *
 	 * Options after the script name go to the script. Put them after `--` if they clash
-	 * with mw's own flags (--path, --ssh, --user, --quiet).
+	 * with mw's own flags (--path, --ssh).
 	 *
 	 * ## OPTIONS
 	 *
@@ -32,7 +32,8 @@ class Maint extends Command {
 	 * ## EXAMPLES
 	 *
 	 *     mw maint runJobs --maxjobs=100
-	 *     mw maint edit -- --user=Admin Main_Page
+	 *     mw maint edit --user=Admin Main_Page
+	 *     mw maint importDump -- --path=dump.xml
 	 *
 	 * @param string[] $args
 	 * @param array<string,string|bool> $assoc_args
