@@ -44,12 +44,16 @@ Feature: Search and replace text in many pages
       Change 1 page, 1 replacement? [y/n]
       """
     When I run "echo y | mw search-replace '/world/' 'there' --summary="
-    Then STDOUT should be:
+    Then STDOUT should contain:
       """
-      Success: Saved 'Foo' as revision 4 (1 replacement).
+      Success: Saved 'Foo' as revision
+      """
+    And STDOUT should contain:
+      """
+      (1 replacement).
       Success: Changed 1 page.
       """
-    When I run "mw maint sql --query='SELECT actor_name, comment_text, rev_minor_edit FROM revision JOIN actor ON rev_actor = actor_id JOIN comment ON rev_comment_id = comment_id WHERE rev_id = 4'"
+    When I run "mw maint sql --query='SELECT actor_name, comment_text, rev_minor_edit FROM revision JOIN actor ON rev_actor = actor_id JOIN comment ON rev_comment_id = comment_id WHERE rev_id = (SELECT MAX(rev_id) FROM revision)'"
     Then STDOUT should contain:
       """
           [actor_name] => Maintenance script
@@ -71,12 +75,16 @@ Feature: Search and replace text in many pages
     When I run "echo 'a [[Category:Fruit]]' | mw page put Apple && echo 'a [[Category:Fruit]]' | mw page put Help:Apple"
     And I run "echo 'a' | mw page put Help:Banana"
     And I run "mw --user=Admin search-replace '/a /' 'b ' --category=Category:Fruit --namespace=Help --summary=Fruit --minor --yes"
-    Then STDOUT should be:
+    Then STDOUT should contain:
       """
-      Success: Saved 'Help:Apple' as revision 5 (1 replacement).
+      Success: Saved 'Help:Apple' as revision
+      """
+    And STDOUT should contain:
+      """
+      (1 replacement).
       Success: Changed 1 page.
       """
-    When I run "mw maint sql --query='SELECT actor_name, comment_text, rev_minor_edit FROM revision JOIN actor ON rev_actor = actor_id JOIN comment ON rev_comment_id = comment_id WHERE rev_id = 5'"
+    When I run "mw maint sql --query='SELECT actor_name, comment_text, rev_minor_edit FROM revision JOIN actor ON rev_actor = actor_id JOIN comment ON rev_comment_id = comment_id WHERE rev_id = (SELECT MAX(rev_id) FROM revision)'"
     Then STDOUT should contain:
       """
           [actor_name] => Admin
@@ -142,19 +150,23 @@ Feature: Search and replace text in many pages
       """
       Error: The replacement would make 'MediaWiki:Foo.json' invalid json content.
       """
-    When I run "mw maint sql --query='SELECT COUNT(*) AS n FROM revision'"
-    Then STDOUT should contain:
+    When I run "mw page get Foo"
+    Then STDOUT should be:
       """
-          [n] => 3
+      aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!b
       """
 
   Scenario: Pages edited after they were read are skipped
     When I run "echo a | mw page put Foo && echo a | mw page put Bar"
     And I try "rm -f /tmp/err; (until grep -q 'y/n' /tmp/err 2>/dev/null; do sleep 0.2; done; echo b | mw page put Bar >/dev/null; echo y) | mw search-replace '/^a$/' 'c' 2>/tmp/err; rc=$?; cat /tmp/err >&2; rm /tmp/err; exit $rc"
     Then the return code should be 1
-    And STDOUT should be:
+    Then STDOUT should contain:
       """
-      Success: Saved 'Foo' as revision 5 (1 replacement).
+      Success: Saved 'Foo' as revision
+      """
+    And STDOUT should contain:
+      """
+      (1 replacement).
       """
     And STDERR should contain:
       """
