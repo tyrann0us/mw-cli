@@ -2,8 +2,10 @@
 
 namespace MwCli;
 
+use MediaWiki\Context\RequestContext;
 use MediaWiki\MediaWikiServices;
 use MediaWiki\User\User;
+use StatusValue;
 
 /**
  * Base for classes in src/Command/. The file name is the command name (SearchReplace.php is
@@ -41,5 +43,33 @@ abstract class Command {
 			Runner::error( "Invalid user '$name'." );
 		}
 		return $this->services()->getUserFactory()->newFromUserIdentity( $user );
+	}
+
+	/**
+	 * A namespace index from a number or a (localized) namespace name, or fails.
+	 */
+	protected function namespace( string $name ): int {
+		$index = ctype_digit( $name )
+			? (int)$name
+			: $this->services()->getContentLanguage()->getNsIndex( strtr( $name, ' ', '_' ) );
+		if ( $index === false || !$this->services()->getNamespaceInfo()->exists( $index ) ) {
+			Runner::error( "Unknown namespace '$name'." );
+		}
+		return $index;
+	}
+
+	/**
+	 * Fails with MediaWiki's message if the status isn't OK.
+	 *
+	 * A template, not StatusValue<mixed>: StatusValue only became generic after 1.43.
+	 *
+	 * @template T of StatusValue
+	 * @param T $status
+	 */
+	protected function check( StatusValue $status ): void {
+		if ( !$status->isOK() ) {
+			$formatter = $this->services()->getFormatterFactory()->getStatusFormatter( RequestContext::getMain() );
+			Runner::error( $formatter->getMessage( $status )->text() );
+		}
 	}
 }
