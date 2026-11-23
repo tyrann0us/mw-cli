@@ -4,7 +4,5 @@ services:
       context: tests/docker
       args:
         SMW: ${SMW:-0}
-    ports:
-      - "8080:80"
     volumes:
       - .:/mw-cli:ro

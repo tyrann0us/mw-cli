@@ -34,8 +34,7 @@ class Runner {
 		$this->cwd = $cwd;
 		foreach ( glob( __DIR__ . '/Command/*.php' ) as $file ) {
 			$class = basename( $file, '.php' );
-			$name = strtolower( preg_replace( '/(?<!^)[A-Z]/', '-$0', $class ) );
-			$this->commands[$name] = __NAMESPACE__ . '\\Command\\' . $class;
+			$this->commands[self::kebab( $class )] = __NAMESPACE__ . '\\Command\\' . $class;
 		}
 
 		if ( isset( $argv[0] ) && str_starts_with( $argv[0], '@' ) ) {
@@ -203,9 +202,16 @@ class Runner {
 
 	public function usage( string $class, string $method ): string {
 		$name = array_search( $class, $this->commands, true );
-		$sub = $method === '__invoke' ? '' : ' ' . strtolower( preg_replace( '/[A-Z]/', '-$0', $method ) );
+		$sub = $method === '__invoke' ? '' : ' ' . self::kebab( $method );
 		$synopsis = Synopsis::parse( ( new ReflectionMethod( $class, $method ) )->getDocComment() ?: '' )['synopsis'];
 		return trim( "mw $name$sub $synopsis" );
+	}
+
+	/**
+	 * SearchReplace or searchReplace to search-replace.
+	 */
+	public static function kebab( string $name ): string {
+		return strtolower( preg_replace( '/(?<!^)[A-Z]/', '-$0', $name ) );
 	}
 
 	public static function report( ExitException $e ): int {

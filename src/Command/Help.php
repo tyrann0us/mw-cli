@@ -43,7 +43,7 @@ class Help extends Command {
 			Runner::line( 'Subcommands:' );
 			$subs = [];
 			foreach ( Runner::subcommands( $class ) as $m ) {
-				$subs[strtolower( preg_replace( '/[A-Z]/', '-$0', $m ) )] = self::summary( new ReflectionMethod( $class, $m ) );
+				$subs[Runner::kebab( $m )] = self::summary( new ReflectionMethod( $class, $m ) );
 			}
 			$this->list( $subs );
 			return;

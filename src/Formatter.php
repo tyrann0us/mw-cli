@@ -17,10 +17,7 @@ class Formatter {
 	 */
 	public static function items( array $rows, array $assoc, array $defaultFields ): void {
 		$fields = self::fields( $assoc, $defaultFields, $rows[array_key_first( $rows )] ?? null );
-		$rows = array_map(
-			static fn ( $row ) => array_merge( array_fill_keys( $fields, null ), array_intersect_key( $row, array_flip( $fields ) ) ),
-			array_values( $rows )
-		);
+		$rows = array_map( static fn ( $row ) => self::pick( $row, $fields ), array_values( $rows ) );
 		if ( isset( $assoc['field'] ) ) {
 			foreach ( $rows as $row ) {
 				echo self::scalar( $row[$assoc['field']] ), "\n";
@@ -61,7 +58,7 @@ class Formatter {
 	 */
 	public static function item( array $row, array $assoc ): void {
 		$fields = self::fields( $assoc, array_keys( $row ), $row );
-		$row = array_merge( array_fill_keys( $fields, null ), array_intersect_key( $row, array_flip( $fields ) ) );
+		$row = self::pick( $row, $fields );
 		if ( isset( $assoc['field'] ) ) {
 			echo self::scalar( $row[$assoc['field']] ), "\n";
 			return;
@@ -103,6 +100,10 @@ class Formatter {
 			Runner::error( 'Invalid field: ' . implode( ', ', $unknown ) . '.' );
 		}
 		return $fields;
+	}
+
+	private static function pick( array $row, array $fields ): array {
+		return array_merge( array_fill_keys( $fields, null ), array_intersect_key( $row, array_flip( $fields ) ) );
 	}
 
 	private static function scalar( mixed $value ): string {

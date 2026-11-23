@@ -68,33 +68,10 @@ class FeatureContext implements Context {
 	}
 
 	/**
-	 * @Then STDOUT should not contain:
-	 */
-	public function stdoutShouldNotContain( PyStringNode $expected ): void {
-		if ( str_contains( $this->stdout, $expected->getRaw() ) ) {
-			throw new RuntimeException( "STDOUT contains:\n{$expected->getRaw()}\n\nSTDOUT:\n$this->stdout" );
-		}
-	}
-
-	/**
-	 * @Then STDOUT should be empty
-	 */
-	public function stdoutShouldBeEmpty(): void {
-		$this->assertSame( '', $this->stdout, 'STDOUT' );
-	}
-
-	/**
 	 * @Then STDERR should contain:
 	 */
 	public function stderrShouldContain( PyStringNode $expected ): void {
 		$this->assertContains( $expected->getRaw(), $this->stderr, 'STDERR' );
-	}
-
-	/**
-	 * @Then STDERR should be empty
-	 */
-	public function stderrShouldBeEmpty(): void {
-		$this->assertSame( '', $this->stderr, 'STDERR' );
 	}
 
 	/**

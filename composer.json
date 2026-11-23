@@ -1,7 +1,6 @@
 {
     "name": "tyrann0us/mw-cli",
     "description": "Command-line interface for MediaWiki.",
-    "type": "library",
     "license": "MIT",
     "bin": [
         "bin/mw"
