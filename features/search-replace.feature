@@ -156,13 +156,18 @@ Feature: Search and replace text in many pages
       """
     Given a file "/tmp/q.sql" with:
       """
-      SELECT COUNT(*) AS n FROM revision JOIN page ON rev_page = page_id
-      WHERE (page_namespace = 0 AND page_title IN ('Foo', 'Main_Page')) OR (page_namespace = 8 AND page_title = 'Foo.json');
+      SELECT COUNT(*) AS n FROM revision WHERE rev_id > (
+        SELECT MAX(rev_id) FROM revision JOIN page ON rev_page = page_id
+        WHERE page_namespace = 8 AND page_title = 'Foo.json'
+      );
       """
     When I run "mw maint sql /tmp/q.sql"
-    Then STDOUT should contain:
+    Then STDOUT should be:
       """
-          [n] => 3
+      stdClass Object
+      (
+          [n] => 0
+      )
       """
 
   Scenario: Pages edited after they were read are skipped
