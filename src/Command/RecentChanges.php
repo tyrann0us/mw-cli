@@ -105,8 +105,9 @@ class RecentChanges extends Command {
 			$hideAction = $row->rc_log_type !== null && $hidden & self::DELETED_ACTION;
 			$rows[] = [
 				'id' => (int)$row->rc_id,
-				// PHP reads YmdHis (MySQL, SQLite) and PostgreSQL timestamps alike.
-				'timestamp' => ( new DateTimeImmutable( $row->rc_timestamp, $utc ) )->format( 'Y-m-d\TH:i:s\Z' ),
+				// PHP reads YmdHis (MySQL, SQLite) and PostgreSQL timestamps, which may carry an offset.
+				'timestamp' => ( new DateTimeImmutable( $row->rc_timestamp, $utc ) )
+					->setTimezone( $utc )->format( 'Y-m-d\TH:i:s\Z' ),
 				// mw.edit, mw.new, mw.log, mw.categorize, or an extension's own source.
 				'type' => preg_replace( '/^mw\./', '', $row->rc_source ),
 				// Hidden by revision deletion or suppression.
