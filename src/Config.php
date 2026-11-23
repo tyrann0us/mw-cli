@@ -84,7 +84,9 @@ class Config {
 		$out = [];
 		foreach ( array_replace( $global, $flags ) as $key => $value ) {
 			if ( $key === 'quiet' ) {
-				$out[$key] = is_string( $value ) ? filter_var( $value, FILTER_VALIDATE_BOOLEAN ) : (bool)$value;
+				$out[$key] = is_string( $value )
+					? filter_var( $value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE ) ?? Runner::error( '--quiet must be true or false.' )
+					: (bool)$value;
 			} elseif ( is_bool( $value ) || $value === '' || !is_scalar( $value ) ) {
 				Runner::error( "--$key needs a value." );
 			} else {

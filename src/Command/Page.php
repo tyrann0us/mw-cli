@@ -54,7 +54,7 @@ class Page extends Command {
 	 * : File with the new text. Reads stdin if left out.
 	 *
 	 * [--summary=<summary>]
-	 * : Edit summary.
+	 * : Edit summary. MediaWiki's automatic summary if left out, e.g. "Created page with …".
 	 *
 	 * [--minor]
 	 * : Mark the edit as minor.
@@ -95,7 +95,8 @@ class Page extends Command {
 		$updater->setContent( SlotRecord::MAIN, $content );
 		$revision = $updater->saveRevision(
 			CommentStoreComment::newUnsavedComment( (string)( $assoc_args['summary'] ?? '' ) ),
-			( !empty( $assoc_args['minor'] ) ? EDIT_MINOR : 0 )
+			EDIT_AUTOSUMMARY
+				| ( !empty( $assoc_args['minor'] ) ? EDIT_MINOR : 0 )
 				| ( !empty( $assoc_args['create-only'] ) ? EDIT_NEW : 0 )
 				| ( ( $assoc_args['create'] ?? true ) === false ? EDIT_UPDATE : 0 )
 		);
@@ -357,7 +358,9 @@ class Page extends Command {
 	}
 
 	private function namespace( string $name ): int {
-		$index = ctype_digit( $name ) ? (int)$name : $this->services()->getContentLanguage()->getNsIndex( $name );
+		$index = ctype_digit( $name )
+			? (int)$name
+			: $this->services()->getContentLanguage()->getNsIndex( strtr( $name, ' ', '_' ) );
 		if ( $index === false || !$this->services()->getNamespaceInfo()->exists( $index ) ) {
 			Runner::error( "Unknown namespace '$name'." );
 		}

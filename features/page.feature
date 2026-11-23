@@ -80,7 +80,12 @@ Feature: Read, edit and manage pages
 
   Scenario: Edits are made as the user from --user
     When I run "echo One | mw --user=Admin page put Foo"
-    And I run "echo Two | mw --user=1 page put Foo"
+    And I run "mw maint sql --query='SELECT comment_text FROM revision JOIN comment ON rev_comment_id = comment_id WHERE rev_id = 2'"
+    Then STDOUT should contain:
+      """
+          [comment_text] => Created page with "One
+      """
+    When I run "echo Two | mw --user=1 page put Foo"
     And I run "echo Three | mw --quiet page put Foo --summary=Quiet"
     Then STDOUT should be:
       """
@@ -127,6 +132,11 @@ Feature: Read, edit and manage pages
       Foo
       Foo/Bar
       Help:Foo
+      """
+    When I run "mw page list --namespace='Help talk' --format=count"
+    Then STDOUT should be:
+      """
+      0
       """
     When I run "mw page list --namespace=Help --format=ids"
     Then STDOUT should be:

@@ -47,6 +47,9 @@ class ConfigTest extends TestCase {
 	public function testQuietAcceptsFalseStrings(): void {
 		$this->assertFalse( Config::resolve( [], null, [ 'quiet' => 'false' ] )['quiet'] );
 		$this->assertTrue( Config::resolve( [], null, [ 'quiet' => true ] )['quiet'] );
+		$this->expectException( ExitException::class );
+		$this->expectExceptionMessage( '--quiet must be true or false.' );
+		Config::resolve( [], null, [ 'quiet' => 'ture' ] );
 	}
 
 	public function testLocalAliasOverridesConfigAndFlagsOverrideAlias(): void {
