@@ -6,6 +6,7 @@ use MwCli\Command;
 use MwCli\Formatter;
 use MwCli\Runner;
 use SMW\ProcessingErrorMsgHandler;
+use SMW\Query\PrintRequest;
 use SMW\Query\Query;
 use SMW\Query\QueryProcessor;
 use SMW\Services\ServicesFactory;
@@ -68,20 +69,23 @@ class Ask extends Command {
 		if ( $errors ) {
 			Runner::error( implode( ' ', $errors ) );
 		}
+		// One field per printout, so the columns are the same with no results.
+		$fields = array_map(
+			static fn ( $pr ) => $pr->isMode( PrintRequest::PRINT_THIS ) ? 'title' : $pr->getLabel(),
+			$result->getPrintRequests()
+		);
 		$rows = [];
 		for ( $columns = $result->getNext(); $columns; $columns = $result->getNext() ) {
 			$row = [];
-			foreach ( $columns as $column ) {
+			foreach ( $columns as $i => $column ) {
 				$values = [];
 				for ( $value = $column->getNextDataValue(); $value; $value = $column->getNextDataValue() ) {
 					$values[] = $value->getWikiValue();
 				}
-				// The page itself is the printout without a label.
-				$label = $column->getPrintRequest()->getLabel();
-				$row[$label === '' ? 'title' : $label] = implode( ', ', $values );
+				$row[$fields[$i]] = implode( ', ', $values );
 			}
 			$rows[] = $row;
 		}
-		Formatter::items( $rows, $assoc_args, array_keys( $rows[0] ?? [ 'title' => null ] ) );
+		Formatter::items( $rows, $assoc_args, $fields );
 	}
 }

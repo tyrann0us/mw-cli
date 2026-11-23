@@ -28,6 +28,11 @@ Feature: Run Semantic MediaWiki queries
       """
       Town Hall
       """
+    When I run "mw ask '[[Category:Nothing]]|?Street' --format=csv"
+    Then STDOUT should be:
+      """
+      title,Street
+      """
     When I run "mw ask '[[Category:Building]]|format=debug' --format=count"
     Then STDOUT should be:
       """
