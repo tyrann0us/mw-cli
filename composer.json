@@ -11,9 +11,25 @@
     },
     "require-dev": {
         "behat/behat": "^3.14",
+        "mediawiki/core": "1.43.12",
         "mediawiki/mediawiki-codesniffer": "^48",
+        "phpstan/phpstan": "^2",
         "phpunit/phpunit": "^10.5 || ^11 || ^12"
     },
+    "repositories": [
+        {
+            "type": "package",
+            "package": {
+                "name": "mediawiki/core",
+                "version": "1.43.12",
+                "description": "MediaWiki source for static analysis only.",
+                "dist": {
+                    "url": "https://github.com/wikimedia/mediawiki/archive/refs/tags/1.43.12.zip",
+                    "type": "zip"
+                }
+            }
+        }
+    ],
     "autoload": {
         "psr-4": {
             "MwCli\\": "src/"
@@ -32,7 +48,8 @@
         "test": [
             "phpunit",
             "behat"
-        ]
+        ],
+        "phpstan": "phpstan"
     },
     "config": {
         "allow-plugins": {

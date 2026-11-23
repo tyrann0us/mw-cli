@@ -12,7 +12,7 @@ spl_autoload_register( static function ( string $class ): void {
 } );
 
 try {
-	$mwCli = new MwCli\Runner( array_slice( $argv, 1 ), getcwd(), getenv( 'HOME' ) ?: null );
+	$mwCli = new MwCli\Runner( array_slice( $_SERVER['argv'], 1 ), getcwd(), getenv( 'HOME' ) ?: null );
 	$ssh = $mwCli->sshCommand();
 	if ( $ssh !== null ) {
 		passthru( $ssh, $code );

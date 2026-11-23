@@ -63,6 +63,9 @@ class Help extends Command {
 		}
 	}
 
+	/**
+	 * @param ReflectionClass<object>|ReflectionMethod $r
+	 */
 	private static function summary( ReflectionClass|ReflectionMethod $r ): string {
 		return Synopsis::parse( $r->getDocComment() ?: '' )['summary'];
 	}

@@ -24,7 +24,7 @@ $runner->initForClass( MwCli\MwMaintenance::class, [ 'mw' ] );
 $runner->defineSettings();
 
 if ( !defined( 'MW_FINAL_SETUP_CALLBACK' ) ) {
-	function wfMwCliSetup( SettingsBuilder $settingsBuilder ) {
+	function wfMwCliSetup( SettingsBuilder $settingsBuilder ): void {
 		// phpcs:ignore MediaWiki.NamingConventions.ValidGlobalName.allowedPrefix
 		global $runner;
 		$runner->setup( $settingsBuilder );

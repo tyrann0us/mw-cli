@@ -1,0 +1,15 @@
+parameters:
+    level: 6
+    paths:
+        - bin/mw
+        - src
+        - tests
+        - features/bootstrap
+    excludePaths:
+        - tests/docker
+    # MediaWiki 1.43 source, installed as a dev dependency for analysis only.
+    scanDirectories:
+        - vendor/mediawiki/core/includes
+        - vendor/mediawiki/core/maintenance/includes
+    ignoreErrors:
+        - identifier: missingType.iterableValue
