@@ -2,7 +2,7 @@ Feature: List recent changes
 
   Background:
     Given a wiki
-    And I run "mw maint sql --query='DELETE FROM /*_*/recentchanges'"
+    And I run "mw maint sql --query='DELETE FROM recentchanges'"
     When I run "echo 'Hello' | mw maint edit --summary=Create Sandbox"
     And I run "echo 'Hello again' | mw maint edit --user=Admin --summary=Update Sandbox"
     And I run "echo 'Help' | mw maint edit --user=Admin Help:Intro"
@@ -61,8 +61,8 @@ Feature: List recent changes
   Scenario: Hidden user names, edit summaries and log actions stay hidden
     Given a file "/tmp/hide.sql" with:
       """
-      UPDATE /*_*/recentchanges SET rc_deleted = 6 WHERE rc_namespace = 0 AND rc_title = 'Sandbox' AND rc_last_oldid > 0 AND rc_log_type IS NULL;
-      UPDATE /*_*/recentchanges SET rc_deleted = 1 WHERE rc_log_type IS NOT NULL;
+      UPDATE recentchanges SET rc_deleted = 6 WHERE rc_namespace = 0 AND rc_title = 'Sandbox' AND rc_last_oldid > 0 AND rc_log_type IS NULL;
+      UPDATE recentchanges SET rc_deleted = 1 WHERE rc_log_type IS NOT NULL;
       """
     When I run "mw maint sql /tmp/hide.sql"
     And I run "mw recent-changes --limit=3 --format=json --fields=type,title,namespace,action,revision,user,comment"
