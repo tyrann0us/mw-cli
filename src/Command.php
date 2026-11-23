@@ -47,11 +47,14 @@ abstract class Command {
 	 * A namespace index from a number or a (localized) namespace name, or fails.
 	 */
 	protected function namespace( string $name ): int {
+		// getNsIndex() would read '' as the main namespace.
+		if ( $name === '' ) {
+			Runner::error( '--namespace needs a value.' );
+		}
 		$index = ctype_digit( $name )
 			? (int)$name
 			: $this->services()->getContentLanguage()->getNsIndex( strtr( $name, ' ', '_' ) );
-		// getNsIndex() reads '' as the main namespace.
-		if ( $index === false || $name === '' || !$this->services()->getNamespaceInfo()->exists( $index ) ) {
+		if ( $index === false || !$this->services()->getNamespaceInfo()->exists( $index ) ) {
 			Runner::error( "Unknown namespace '$name'." );
 		}
 		return $index;
