@@ -16,7 +16,7 @@ class FeatureContext implements Context {
 	 * @BeforeScenario
 	 */
 	public function resetWiki(): void {
-		$this->exec( 'rm -rf /var/www/data && cp -a /var/www/data.snapshot /var/www/data' );
+		$this->exec( 'reset-wiki' );
 		if ( $this->code !== 0 ) {
 			throw new RuntimeException( "Could not reset the test wiki. Is it running (docker compose up -d)?\n$this->stderr" );
 		}

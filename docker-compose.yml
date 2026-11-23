@@ -3,6 +3,28 @@ services:
     build:
       context: tests/docker
       args:
+        MW: ${MW:-1.43}
+        MW_BRANCH: ${MW_BRANCH:-}
         SMW: ${SMW:-0}
+    environment:
+      DB: ${DB:-sqlite}
+      SMW: ${SMW:-0}
+      COVERAGE: ${COVERAGE:-0}
     volumes:
-      - .:/mw-cli:ro
+      - .:/mw-cli
+    depends_on:
+      db:
+        condition: service_started
+        required: false
+    healthcheck:
+      test: ["CMD", "test", "-f", "/ready"]
+      interval: 2s
+      retries: 300
+
+  # Started with COMPOSE_PROFILES=mariadb (and DB=mariadb).
+  db:
+    image: mariadb:11.4
+    profiles: [mariadb]
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+      MARIADB_DATABASE: wiki
