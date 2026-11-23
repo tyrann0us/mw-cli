@@ -26,7 +26,8 @@ abstract class Command {
 	 */
 	protected function performer(): User {
 		$name = $this->cli->global['user'] ?? null;
-		if ( $name === null || $name === false ) {
+		if ( $name === null ) {
+			// No service replaces this in 1.43, and it isn't deprecated.
 			return User::newSystemUser( User::MAINTENANCE_SCRIPT_USER, [ 'steal' => true ] );
 		}
 		$factory = $this->services()->getUserFactory();

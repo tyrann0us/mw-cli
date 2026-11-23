@@ -8,8 +8,6 @@ namespace MwCli;
  * INI instead of YAML because config is read before MediaWiki (and its YAML parser) loads.
  */
 class Config {
-	private const KEYS = [ 'path', 'ssh', 'user', 'quiet' ];
-
 	/**
 	 * @return array{0: array, 1: string[]} Merged config and the files that were read.
 	 */
@@ -34,9 +32,17 @@ class Config {
 			if ( $ini === false ) {
 				Runner::error( "Can't parse config file $file." );
 			}
-			// A relative top-level path is relative to the file that sets it.
-			if ( is_string( $ini['path'] ?? null ) && !preg_match( '#^[/~]#', $ini['path'] ) ) {
-				$ini['path'] = dirname( $file ) . '/' . $ini['path'];
+			// A relative path is relative to the file that sets it, unless it's for an SSH host.
+			foreach ( [ null, ...array_keys( array_filter( $ini, 'is_array' ) ) ] as $section ) {
+				$values = $section === null ? $ini : $ini[$section];
+				if ( is_string( $values['path'] ?? null ) && !isset( $values['ssh'] ) && !preg_match( '#^[/~]#', $values['path'] ) ) {
+					$path = dirname( $file ) . '/' . $values['path'];
+					if ( $section === null ) {
+						$ini['path'] = $path;
+					} else {
+						$ini[$section]['path'] = $path;
+					}
+				}
 			}
 			$config = array_replace_recursive( $config, $ini );
 		}
@@ -50,7 +56,7 @@ class Config {
 	public static function resolve( array $config, ?string $alias, array $flags ): array {
 		$global = array_intersect_key(
 			array_filter( $config, static fn ( $v ) => !is_array( $v ) ),
-			array_flip( self::KEYS )
+			array_flip( Runner::GLOBAL_FLAGS )
 		);
 
 		if ( $alias !== null ) {
@@ -58,7 +64,7 @@ class Config {
 			if ( !is_array( $section ) ) {
 				Runner::error( "Alias '$alias' not found." );
 			}
-			$section = array_intersect_key( $section, array_flip( self::KEYS ) );
+			$section = array_intersect_key( $section, array_flip( Runner::GLOBAL_FLAGS ) );
 			if ( isset( $section['ssh'] ) ) {
 				foreach ( [ 'path', 'user' ] as $key ) {
 					if ( isset( $section[$key] ) ) {
@@ -70,6 +76,16 @@ class Config {
 			$global = array_replace( $global, $section );
 		}
 
-		return array_replace( $global, $flags );
+		$global = array_replace( $global, $flags );
+		foreach ( [ 'path', 'ssh', 'user', 'remote-path', 'remote-user' ] as $key ) {
+			if ( !isset( $global[$key] ) ) {
+				continue;
+			}
+			if ( is_bool( $global[$key] ) || $global[$key] === '' ) {
+				Runner::error( "--$key needs a value." );
+			}
+			$global[$key] = (string)$global[$key];
+		}
+		return $global;
 	}
 }

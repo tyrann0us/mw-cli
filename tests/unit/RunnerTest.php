@@ -94,4 +94,40 @@ class RunnerTest extends TestCase {
 		$this->expectExceptionMessage( 'needs MediaWiki 1.43 or later, found 1.42.3' );
 		( new Runner( [], "$wiki/sub", null ) )->wikiPath();
 	}
+
+	public function testFlagsWithoutValueFail(): void {
+		foreach ( [ '--user', '--ssh', '--path' ] as $flag ) {
+			try {
+				new Runner( [ 'cli', 'info', $flag ], $this->dir, null );
+				$this->fail( "$flag without value was accepted" );
+			} catch ( ExitException $e ) {
+				$this->assertSame( "$flag needs a value.", $e->getMessage() );
+			}
+		}
+	}
+
+	public function testAliasMayFollowGlobalFlags(): void {
+		file_put_contents( "$this->dir/project/mw.ini", "[@prod]\nssh = wiki.example.org\n" );
+		$cli = new Runner( [ '--quiet', '@prod', 'cli', 'version' ], "$this->dir/project", null );
+		$this->assertSame( [ 'cli', 'version' ], $cli->args );
+		$this->assertStringContainsString( 'wiki.example.org', $cli->sshCommand() );
+	}
+
+	public function testTokensAfterDoubleDashDoNotOverrideAlias(): void {
+		file_put_contents( "$this->dir/project/mw.ini", "[@prod]\nssh = wiki.example.org\npath = /srv/w\nuser = Bot\n" );
+		$cli = new Runner( [ '@prod', 'maint', 'edit', '--', '--user=Admin' ], "$this->dir/project", null );
+		$this->assertStringContainsString(
+			escapeshellarg( "'mw' '--user=Bot' '--path=/srv/w' 'maint' 'edit' '--' '--user=Admin'" ),
+			$cli->sshCommand()
+		);
+	}
+
+	public function testTildePathIsExpanded(): void {
+		mkdir( "$this->dir/project/maintenance" );
+		mkdir( "$this->dir/project/includes" );
+		touch( "$this->dir/project/maintenance/run.php" );
+		file_put_contents( "$this->dir/project/includes/Defines.php", "<?php define( 'MW_VERSION', '1.43.1' );" );
+		$cli = new Runner( [ '--path=~/project' ], '/', $this->dir );
+		$this->assertSame( realpath( "$this->dir/project" ), $cli->wikiPath() );
+	}
 }

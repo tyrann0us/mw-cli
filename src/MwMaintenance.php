@@ -10,9 +10,11 @@ use MediaWiki\Maintenance\Maintenance;
  */
 class MwMaintenance extends Maintenance {
 	public static Runner $cli;
+	public static int $code = 0;
 
 	public function execute() {
 		// Returning false (instead of exiting) lets MediaWiki commit and run deferred updates.
-		return self::$cli->run() === 0;
+		self::$code = self::$cli->run();
+		return self::$code === 0;
 	}
 }

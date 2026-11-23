@@ -35,4 +35,4 @@ if ( !defined( 'MW_FINAL_SETUP_CALLBACK' ) ) {
 
 require_once "$IP/includes/Setup.php";
 
-exit( $runner->run() ? 0 : 1 );
+exit( $runner->run() ? 0 : max( 1, MwCli\MwMaintenance::$code ) );

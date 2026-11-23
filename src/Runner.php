@@ -29,16 +29,25 @@ class Runner {
 	/** @var string[] argv without the alias, for forwarding over SSH. */
 	private array $tokens = [];
 	private string $cwd;
+	private ?string $home;
 
 	public function __construct( array $argv, string $cwd, ?string $home ) {
 		$this->cwd = $cwd;
+		$this->home = $home;
 		foreach ( glob( __DIR__ . '/Command/*.php' ) as $file ) {
 			$class = basename( $file, '.php' );
 			$this->commands[self::kebab( $class )] = __NAMESPACE__ . '\\Command\\' . $class;
 		}
 
-		if ( isset( $argv[0] ) && str_starts_with( $argv[0], '@' ) ) {
-			$this->alias = array_shift( $argv );
+		// The alias is the first positional token, so global flags may come before it.
+		foreach ( $argv as $i => $token ) {
+			if ( !str_starts_with( $token, '--' ) ) {
+				if ( str_starts_with( $token, '@' ) ) {
+					$this->alias = $token;
+					array_splice( $argv, $i, 1 );
+				}
+				break;
+			}
 		}
 		$this->tokens = $argv;
 		[ $this->args, $assoc ] = self::parseArgv( $argv );
@@ -83,7 +92,7 @@ class Runner {
 	 */
 	public function sshCommand(): ?string {
 		$ssh = $this->global['ssh'] ?? null;
-		if ( !is_string( $ssh ) || $ssh === '' ) {
+		if ( $ssh === null ) {
 			return null;
 		}
 		// ponytail: [user@]host[:port][/path] only; add docker:/vagrant: schemes when asked.
@@ -94,9 +103,13 @@ class Runner {
 		$path = ( $m[4] ?? '' ) !== '' ? $m[4] : ( $this->global['remote-path'] ?? null );
 
 		// Flags given on the command line are forwarded as-is and win over the alias.
-		$forward = array_values( preg_grep( '/^--ssh(=|$)/', $this->tokens, PREG_GREP_INVERT ) );
+		// Tokens after "--" belong to the command (e.g. a maintenance script), not to mw.
+		$end = array_search( '--', $this->tokens, true );
+		$own = $end === false ? $this->tokens : array_slice( $this->tokens, 0, $end );
+		$rest = $end === false ? [] : array_slice( $this->tokens, $end );
+		$forward = [ ...preg_grep( '/^--ssh(=|$)/', $own, PREG_GREP_INVERT ), ...$rest ];
 		foreach ( [ 'path' => $path, 'user' => $this->global['remote-user'] ?? null ] as $key => $value ) {
-			if ( $value !== null && !preg_grep( "/^--$key(=|$)/", $forward ) ) {
+			if ( $value !== null && !preg_grep( "/^--$key(=|$)/", $own ) ) {
 				array_unshift( $forward, "--$key=$value" );
 			}
 		}
@@ -117,7 +130,10 @@ class Runner {
 	 */
 	public function wikiPath(): string {
 		$path = $this->global['path'] ?? null;
-		if ( is_string( $path ) ) {
+		if ( $path !== null ) {
+			if ( $this->home !== null && preg_match( '#^~(/|$)#', $path ) ) {
+				$path = $this->home . substr( $path, 1 );
+			}
 			$path = str_starts_with( $path, '/' ) ? $path : "$this->cwd/$path";
 			if ( !self::isWiki( $path ) ) {
 				self::error( "No MediaWiki installation found in '$path'." );
@@ -252,7 +268,11 @@ class Runner {
 			return;
 		}
 		echo "$question [y/n] ";
-		if ( strtolower( trim( (string)fgets( STDIN ) ) ) !== 'y' ) {
+		$answer = fgets( STDIN );
+		if ( $answer === false ) {
+			self::error( 'No answer on stdin. Pass --yes to run without confirmation.' );
+		}
+		if ( strtolower( trim( $answer ) ) !== 'y' ) {
 			throw new ExitException( '', 0 );
 		}
 	}

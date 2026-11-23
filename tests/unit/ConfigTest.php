@@ -30,6 +30,13 @@ class ConfigTest extends TestCase {
 		$this->assertSame( "$this->dir/project/w", $config['path'] );
 	}
 
+	public function testRelativeAliasPathIsRelativeToFileUnlessSsh(): void {
+		file_put_contents( "$this->dir/project/mw.ini", "[@a]\npath = w2\n[@b]\nssh = host\npath = w3\n" );
+		[ $config ] = Config::load( "$this->dir/project/sub", null );
+		$this->assertSame( "$this->dir/project/w2", $config['@a']['path'] );
+		$this->assertSame( 'w3', $config['@b']['path'] );
+	}
+
 	public function testLocalAliasOverridesConfigAndFlagsOverrideAlias(): void {
 		$config = [ 'path' => '/a', 'user' => 'A', '@local' => [ 'path' => '/b', 'user' => 'B' ] ];
 		$this->assertSame( [ 'path' => '/b', 'user' => 'C' ], Config::resolve( $config, '@local', [ 'user' => 'C' ] ) );
