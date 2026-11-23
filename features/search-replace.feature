@@ -153,7 +153,7 @@ Feature: Search and replace text in many pages
       """
     And STDERR should contain:
       """
-      Warning: Skipped 'Bar': it was edited after it was read.
+      Warning: Skipped 'Bar': Edit conflict.
       """
     When I run "mw page get Bar"
     Then STDOUT should be:

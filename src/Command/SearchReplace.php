@@ -4,12 +4,14 @@ namespace MwCli\Command;
 
 use MediaWiki\Category\Category;
 use MediaWiki\CommentStore\CommentStoreComment;
+use MediaWiki\Context\RequestContext;
 use MediaWiki\MainConfigNames;
 use MediaWiki\Page\PageIdentity;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Revision\SlotRecord;
 use MwCli\Command;
 use MwCli\Runner;
+use StatusValue;
 use Wikimedia\Diff\Diff;
 use Wikimedia\Diff\UnifiedDiffFormatter;
 
@@ -23,7 +25,8 @@ class SearchReplace extends Command {
 	 * Without --category or --namespace, all pages in the wiki's content namespaces
 	 * ($wgContentNamespaces, usually just the main namespace) are searched. With both,
 	 * only category members in that namespace. Pages are read and checked before anything
-	 * is saved. A page edited after it was read is skipped with a warning.
+	 * is saved. Pages that were edited after
+	 * they were read, or fail to save, are skipped with a warning.
 	 *
 	 * ## OPTIONS
 	 *
@@ -82,7 +85,8 @@ class SearchReplace extends Command {
 			$name = $wikiPage->getTitle()->getPrefixedText();
 			$content = $wikiPage->getContent( RevisionRecord::RAW );
 			$old = $content?->serialize() ?? '';
-			$new = preg_replace( $regex, $replacement, $old, -1, $count ) ?? $this->failed( $name );
+			$new = preg_replace( $regex, $replacement, $old, -1, $count )
+				?? Runner::error( "Regex failed on '$name': " . preg_last_error_msg() . '.' );
 			if ( $content === null || $new === $old ) {
 				continue;
 			}
@@ -113,18 +117,25 @@ class SearchReplace extends Command {
 			$assoc_args['summary'] ?? "Replace $regex with \"$replacement\" (mw search-replace)"
 		) );
 		$flags = EDIT_UPDATE | ( !empty( $assoc_args['minor'] ) ? EDIT_MINOR : 0 );
+		$statusFormatter = $this->services()->getFormatterFactory()->getStatusFormatter( RequestContext::getMain() );
 		$saved = 0;
 		foreach ( $changes as [ $page, $name, $revisionId, $content, $count ] ) {
 			// A new WikiPage, so the conflict check reads the current revision, not the one cached above.
 			$updater = $this->services()->getPageUpdaterFactory()
 				->newPageUpdater( $factory->newFromTitle( $page ), $performer );
+			$revision = null;
 			if ( $updater->hasEditConflict( $revisionId ) ) {
-				Runner::warning( "Skipped '$name': it was edited after it was read." );
+				$status = StatusValue::newFatal( 'edit-conflict' );
+			} else {
+				$updater->setContent( SlotRecord::MAIN, $content );
+				$revision = $updater->saveRevision( $comment, $flags );
+				$status = $updater->getStatus();
+			}
+			// Earlier pages are saved already, so a failed page doesn't stop the others.
+			if ( !$status->isOK() ) {
+				Runner::warning( "Skipped '$name': " . $statusFormatter->getMessage( $status )->text() );
 				continue;
 			}
-			$updater->setContent( SlotRecord::MAIN, $content );
-			$revision = $updater->saveRevision( $comment, $flags );
-			$this->check( $updater->getStatus() );
 			if ( $revision === null ) {
 				// Pre-save transform, e.g. trimming trailing spaces, can undo the change.
 				Runner::warning( "No change: '$name' would be saved with the same text." );
@@ -162,10 +173,6 @@ class SearchReplace extends Command {
 			->orderBy( [ 'page_namespace', 'page_title' ] )
 			->caller( __METHOD__ )
 			->fetchPageRecords();
-	}
-
-	private function failed( string $name ): never {
-		Runner::error( "Regex failed on '$name': " . preg_last_error_msg() . '.' );
 	}
 
 	private static function plural( int $count, string $noun ): string {

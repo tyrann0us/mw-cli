@@ -3,12 +3,14 @@
 namespace MwCli\Command;
 
 use MediaWiki\CommentStore\CommentStoreComment;
+use MediaWiki\Context\RequestContext;
 use MediaWiki\MainConfigNames;
 use MediaWiki\Revision\SlotRecord;
 use MediaWiki\Title\Title;
 use MwCli\Command;
 use MwCli\Formatter;
 use MwCli\Runner;
+use StatusValue;
 use Wikimedia\ParamValidator\TypeDef\ExpiryDef;
 use Wikimedia\Rdbms\IExpression;
 use Wikimedia\Rdbms\LikeValue;
@@ -358,5 +360,20 @@ class Page extends Command {
 
 	private function missing( Title $title ): never {
 		Runner::error( "Page '{$title->getPrefixedText()}' doesn't exist." );
+	}
+
+	/**
+	 * Fails with MediaWiki's message if the status isn't OK.
+	 *
+	 * A template, not StatusValue<mixed>: StatusValue only became generic after 1.43.
+	 *
+	 * @template T of StatusValue
+	 * @param T $status
+	 */
+	private function check( StatusValue $status ): void {
+		if ( !$status->isOK() ) {
+			$formatter = $this->services()->getFormatterFactory()->getStatusFormatter( RequestContext::getMain() );
+			Runner::error( $formatter->getMessage( $status )->text() );
+		}
 	}
 }
