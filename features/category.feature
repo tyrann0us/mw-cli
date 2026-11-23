@@ -27,11 +27,11 @@ Feature: List category members and the categories of pages
     When I run "mw category members Fruit"
     Then STDOUT should be:
       """
-      title	namespace	type
-      Apple	0	page
-      Banana	0	page
-      Category:Citrus	14	subcat
-      File:Pear	6	file
+      id	title	namespace	type
+      2	Apple	0	page
+      3	Banana	0	page
+      4	Category:Citrus	14	subcat
+      5	File:Pear	6	file
       """
     When I run "mw category members category:fruit --format=count"
     Then STDOUT should be:
@@ -46,10 +46,10 @@ Feature: List category members and the categories of pages
       Category:Citrus
       """
     When I run "mw category members Fruit --namespace=File --fields=title,id --format=csv"
-    Then STDOUT should contain:
+    Then STDOUT should be:
       """
       title,id
-      File:Pear,
+      File:Pear,5
       """
     When I run "mw category members Fruit --namespace='Category talk' --format=count"
     Then STDOUT should be:
@@ -59,7 +59,7 @@ Feature: List category members and the categories of pages
     When I run "mw category members Fruit --namespace=0 --type=page --format=ids"
     Then STDOUT should be:
       """
-      Apple Banana
+      2 3
       """
 
   Scenario: A category name in another namespace's form is still a category
@@ -107,9 +107,15 @@ Feature: List category members and the categories of pages
       """
       Error: Invalid category name: <.
       """
+    When I try "mw category members Category:"
+    Then the return code should be 1
+    And STDERR should contain:
+      """
+      Error: Invalid category name: Category:.
+      """
 
   Scenario: Categories of pages, one row per page and category
-    When I run "mw category of Banana Apple Main_Page"
+    When I run "mw category of Banana Apple Main_Page apple"
     Then STDOUT should be:
       """
       title	category

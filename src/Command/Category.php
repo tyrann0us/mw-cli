@@ -35,7 +35,7 @@ class Category extends Command {
 	 * : table, json, csv, yaml, ids or count.
 	 *
 	 * [--fields=<fields>]
-	 * : Comma-separated fields to show: title, namespace, type, id. Default: title, namespace, type.
+	 * : Comma-separated fields to show: id, title, namespace, type. Default: all.
 	 *
 	 * [--field=<field>]
 	 * : Prints only the value of this field.
@@ -60,16 +60,16 @@ class Category extends Command {
 		$rows = [];
 		foreach ( MwCategory::newFromTitle( $this->categoryTitle( $args[0] ) )->getMembers() as $title ) {
 			$row = [
+				'id' => $title->getArticleID(),
 				'title' => $title->getPrefixedText(),
 				'namespace' => $title->getNamespace(),
 				'type' => self::TYPES[$title->getNamespace()] ?? 'page',
-				'id' => $title->getArticleID(),
 			];
 			if ( ( $ns === null || $ns === $row['namespace'] ) && ( $type === null || $type === $row['type'] ) ) {
 				$rows[] = $row;
 			}
 		}
-		Formatter::items( $rows, $assoc_args, [ 'title', 'namespace', 'type' ] );
+		Formatter::items( $rows, $assoc_args, [ 'id', 'title', 'namespace', 'type' ] );
 	}
 
 	/**
@@ -110,7 +110,9 @@ class Category extends Command {
 			}
 			sort( $categories );
 			foreach ( $categories as $category ) {
-				$rows[] = [ 'title' => $page->getPrefixedText(), 'category' => $category ];
+				// Keyed, so a page given twice is listed once.
+				$row = [ 'title' => $page->getPrefixedText(), 'category' => $category ];
+				$rows[implode( '|', $row )] = $row;
 			}
 		}
 		Formatter::items( $rows, $assoc_args, [ 'title', 'category' ] );
@@ -122,7 +124,7 @@ class Category extends Command {
 	private function categoryTitle( string $name ): Title {
 		$factory = $this->services()->getTitleFactory();
 		$title = $factory->newFromText( $name, NS_CATEGORY );
-		if ( $title?->getNamespace() !== NS_CATEGORY ) {
+		if ( $title && $title->getNamespace() !== NS_CATEGORY ) {
 			// "Help:Foo" names the category Category:Help:Foo, not the help page.
 			$title = $factory->makeTitleSafe( NS_CATEGORY, $name );
 		}
