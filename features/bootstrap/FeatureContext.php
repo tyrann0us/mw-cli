@@ -64,11 +64,16 @@ class FeatureContext implements Context {
 	 * @Then STDOUT should be like:
 	 */
 	public function stdoutShouldBeLike( PyStringNode $expected ): void {
-		// Like "should be", but {id} stands for any number, e.g. an ID the install assigns.
-		$pattern = str_replace( '\{id\}', '\d+', preg_quote( $expected->getRaw(), '#' ) );
-		if ( !preg_match( "#^$pattern$#", rtrim( $this->stdout, "\n" ) ) ) {
+		// Like "should be", but {id} stands for any ID (a positive number), e.g. one the install assigns.
+		$pattern = str_replace( '\{id\}', '[1-9][0-9]*', preg_quote( $expected->getRaw(), '#' ) );
+		$actual = rtrim( $this->stdout, "\n" );
+		$match = preg_match( "#^$pattern$#", $actual );
+		if ( $match === false ) {
+			throw new RuntimeException( 'Pattern error: ' . preg_last_error_msg() );
+		}
+		if ( $match === 0 ) {
 			throw new RuntimeException(
-				"STDOUT is:\n$this->stdout\nExpected ({id} is any number):\n{$expected->getRaw()}\n\nSTDERR:\n$this->stderr"
+				"STDOUT is:\n$actual\n\nExpected ({id} is any ID):\n{$expected->getRaw()}\n\nSTDERR:\n$this->stderr"
 			);
 		}
 	}

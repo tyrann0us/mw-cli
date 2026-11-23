@@ -33,7 +33,7 @@ Feature: Read, edit and manage pages
       """
     Given a file "/tmp/q.sql" with:
       """
-      SELECT actor_name, comment_text, rev_minor_edit FROM revision
+      SELECT actor_name, rev_minor_edit, comment_text FROM revision
       JOIN actor ON rev_actor = actor_id JOIN comment ON rev_comment_id = comment_id JOIN page ON rev_page = page_id
       WHERE page_namespace = 0 AND page_title = 'Foo' ORDER BY rev_id;
       """
@@ -41,11 +41,12 @@ Feature: Read, edit and manage pages
     Then STDOUT should contain:
       """
           [actor_name] => Maintenance script
-          [comment_text] => First version
           [rev_minor_edit] => 0
-      """
-    And STDOUT should contain:
-      """
+          [comment_text] => First version
+      )
+      stdClass Object
+      (
+          [actor_name] => Maintenance script
           [rev_minor_edit] => 1
       """
 
@@ -90,13 +91,13 @@ Feature: Read, edit and manage pages
 
   Scenario: Edits are made as the user from --user
     When I run "echo One | mw --user=Admin page put Foo"
-    And a file "/tmp/q.sql" with:
+    Given a file "/tmp/q.sql" with:
       """
       SELECT comment_text FROM revision
-      JOIN actor ON rev_actor = actor_id JOIN comment ON rev_comment_id = comment_id JOIN page ON rev_page = page_id
+      JOIN comment ON rev_comment_id = comment_id JOIN page ON rev_page = page_id
       WHERE page_namespace = 0 AND page_title = 'Foo' ORDER BY rev_id LIMIT 1;
       """
-    And I run "mw maint sql /tmp/q.sql"
+    When I run "mw maint sql /tmp/q.sql"
     Then STDOUT should contain:
       """
           [comment_text] => Created page with "One
@@ -109,7 +110,7 @@ Feature: Read, edit and manage pages
     Given a file "/tmp/q.sql" with:
       """
       SELECT actor_name, actor_user FROM revision
-      JOIN actor ON rev_actor = actor_id JOIN comment ON rev_comment_id = comment_id JOIN page ON rev_page = page_id
+      JOIN actor ON rev_actor = actor_id JOIN page ON rev_page = page_id
       WHERE page_namespace = 0 AND page_title = 'Foo' ORDER BY rev_id;
       """
     When I run "mw maint sql /tmp/q.sql"
@@ -314,7 +315,7 @@ Feature: Read, edit and manage pages
     Given a file "/tmp/q.sql" with:
       """
       SELECT actor_name FROM revision
-      JOIN actor ON rev_actor = actor_id JOIN comment ON rev_comment_id = comment_id JOIN page ON rev_page = page_id
+      JOIN actor ON rev_actor = actor_id JOIN page ON rev_page = page_id
       WHERE page_namespace = 0 AND page_title = 'Foo' ORDER BY rev_id;
       """
     When I run "mw maint sql /tmp/q.sql"
