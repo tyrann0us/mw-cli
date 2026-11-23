@@ -156,8 +156,8 @@ Feature: Search and replace text in many pages
       """
     Given a file "/tmp/q.sql" with:
       """
-      SELECT COUNT(*) AS n FROM revision WHERE rev_id > (
-        SELECT MAX(rev_id) FROM revision JOIN page ON rev_page = page_id
+      SELECT COUNT(*) AS n FROM revision WHERE rev_id >= (
+        SELECT MIN(rev_id) FROM revision JOIN page ON rev_page = page_id
         WHERE page_namespace = 8 AND page_title = 'Foo.json'
       );
       """
@@ -166,7 +166,7 @@ Feature: Search and replace text in many pages
       """
       stdClass Object
       (
-          [n] => 0
+          [n] => 1
       )
       """
 
