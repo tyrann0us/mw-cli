@@ -77,9 +77,10 @@ class Synopsis {
 				return "Missing --$name.";
 			}
 		}
-		foreach ( $synopsis['valued'] as $name ) {
-			if ( is_bool( $assoc[$name] ?? null ) ) {
-				return "--$name needs a value.";
+		foreach ( $synopsis['assoc'] as $name => $isRequired ) {
+			$valued = in_array( $name, $synopsis['valued'], true );
+			if ( isset( $assoc[$name] ) && $valued === is_bool( $assoc[$name] ) ) {
+				return $valued ? "--$name needs a value." : "--$name doesn't take a value.";
 			}
 		}
 		$unknown = array_diff( array_keys( $assoc ), array_keys( $synopsis['assoc'] ) );

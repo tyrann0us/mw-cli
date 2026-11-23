@@ -164,14 +164,14 @@ Feature: Read, edit and manage pages
       Error: No answer on stdin. Pass --yes to run without confirmation.
       """
     When I run "echo n | mw page delete Foo Main_Page"
-    Then STDOUT should contain:
+    Then STDERR should contain:
       """
       Delete 2 pages? [y/n]
       """
     When I run "echo y | mw page delete Foo --reason=Cleanup"
-    Then STDOUT should contain:
+    Then STDOUT should be:
       """
-      Delete 'Foo'? [y/n] Success: Deleted 'Foo'.
+      Success: Deleted 'Foo'.
       """
     When I try "mw page get Foo"
     Then the return code should be 1

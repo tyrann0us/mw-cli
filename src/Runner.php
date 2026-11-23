@@ -327,7 +327,8 @@ class Runner {
 		if ( !empty( $assoc['yes'] ) ) {
 			return;
 		}
-		echo "$question [y/n] ";
+		// On stderr, so the prompt shows even when stdout is redirected.
+		fwrite( STDERR, "$question [y/n] " );
 		$answer = fgets( STDIN );
 		if ( $answer === false ) {
 			self::error( 'No answer on stdin. Pass --yes to run without confirmation.' );
