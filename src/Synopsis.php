@@ -4,7 +4,7 @@ namespace MwCli;
 
 /**
  * Reads the docblock of a command method: summary, "## OPTIONS" tokens
- * (`<arg>`, `[<arg>...]`, `--key=<value>`, `[--flag]`, `[--<field>=<value>]`) and the text for help.
+ * (`<arg>`, `[<arg>...]`, `--key=<value>`, `[--flag]`, `[--no-flag]`, `[--<field>=<value>]`) and the text for help.
  * Lines from the first @-tag on (e.g. @param) are left out.
  *
  * @phpstan-type SynopsisData array{summary: string, text: string, synopsis: string, positional: list<array{name: string, optional: bool, repeating: bool}>, assoc: array<string,bool>, generic: bool}
@@ -40,7 +40,8 @@ class Synopsis {
 			if ( ( $m[3] ?? '' ) !== '' ) {
 				$out['positional'][] = [ 'name' => $m[3], 'optional' => $optional, 'repeating' => ( $m[6] ?? '' ) !== '' ];
 			} elseif ( ( $m[4] ?? '' ) !== '' ) {
-				$out['assoc'][$m[4]] = !$optional;
+				// Runner::parseArgv() reads --no-x as x=false.
+				$out['assoc'][str_starts_with( $m[4], 'no-' ) ? substr( $m[4], 3 ) : $m[4]] = !$optional;
 			} else {
 				$out['generic'] = true;
 			}

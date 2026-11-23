@@ -29,6 +29,9 @@ class SynopsisTest extends TestCase {
 		 * [--yes]
 		 * : Skip confirmation.
 		 *
+		 * [--no-redirect]
+		 * : Don't leave a redirect.
+		 *
 		 * @param string[] $args
 		 * --ignored
 		 */
@@ -37,15 +40,15 @@ class SynopsisTest extends TestCase {
 	public function testParse(): void {
 		$s = Synopsis::parse( self::DOC );
 		$this->assertSame( 'Gets a page.', $s['summary'] );
-		$this->assertSame( '<title> [<more>...] --summary=<summary> [--format=<format>] [--yes]', $s['synopsis'] );
-		$this->assertSame( [ 'summary' => true, 'format' => false, 'yes' => false ], $s['assoc'] );
+		$this->assertSame( '<title> [<more>...] --summary=<summary> [--format=<format>] [--yes] [--no-redirect]', $s['synopsis'] );
+		$this->assertSame( [ 'summary' => true, 'format' => false, 'yes' => false, 'redirect' => false ], $s['assoc'] );
 		$this->assertSame( [
 			[ 'name' => 'title', 'optional' => false, 'repeating' => false ],
 			[ 'name' => 'more', 'optional' => true, 'repeating' => true ],
 		], $s['positional'] );
 		$this->assertFalse( $s['generic'] );
 		$this->assertStringStartsWith( "Gets a page.\n\nMore text.", $s['text'] );
-		$this->assertStringEndsWith( ': Skip confirmation.', $s['text'] );
+		$this->assertStringEndsWith( ": Don't leave a redirect.", $s['text'] );
 	}
 
 	public function testValidate(): void {
