@@ -50,8 +50,8 @@ class Ask extends Command {
 		if ( !$this->services()->getExtensionRegistry()->isLoaded( 'SemanticMediaWiki' ) ) {
 			Runner::error( 'Semantic MediaWiki is not installed on this wiki.' );
 		}
-		// Split on | outside [[ ]], so [[A::x||y]] stays one condition.
-		$params = preg_split( '/\|(?![^\[\]]*\]\])/', $args[0] ) ?: [];
+		// Split on single | outside [[ ]]; || is OR, as in [[A::x||y]] or [[A::x]] || [[B::y]].
+		$params = preg_split( '/(?<!\|)\|(?!\|)(?![^\[\]]*\]\])/', $args[0] ) ?: [];
 		// Output goes through --format. format=count or format=debug would change the query mode and limit.
 		$params = preg_grep( '/^\s*format\s*=/i', $params, PREG_GREP_INVERT ) ?: [];
 		if ( isset( $assoc_args['limit'] ) ) {
