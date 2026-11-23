@@ -12,9 +12,9 @@ Feature: Read, edit and manage pages
       MediaWiki has been installed.
       """
     When I run "mw page put Foo /tmp/foo.wiki --summary='First version'"
-    Then STDOUT should contain:
+    Then STDOUT should be like:
       """
-      Success: Saved 'Foo' as revision
+      Success: Saved 'Foo' as revision {id}.
       """
     When I run "mw page get Foo"
     Then STDOUT should be:
@@ -27,16 +27,26 @@ Feature: Read, edit and manage pages
       Warning: No change: 'Foo' already has this text.
       """
     When I run "echo 'Second version' | mw page put Foo --minor"
-    Then STDOUT should contain:
+    Then STDOUT should be like:
       """
-      Success: Saved 'Foo' as revision
+      Success: Saved 'Foo' as revision {id}.
       """
-    When I run "mw maint sql --query='SELECT actor_name, comment_text, rev_minor_edit FROM revision JOIN actor ON rev_actor = actor_id JOIN comment ON rev_comment_id = comment_id WHERE rev_id = (SELECT MIN(rev_id) FROM revision WHERE rev_page = (SELECT rev_page FROM revision ORDER BY rev_id DESC LIMIT 1))'"
+    Given a file "/tmp/q.sql" with:
+      """
+      SELECT actor_name, comment_text, rev_minor_edit FROM revision
+      JOIN actor ON rev_actor = actor_id JOIN comment ON rev_comment_id = comment_id JOIN page ON rev_page = page_id
+      WHERE page_namespace = 0 AND page_title = 'Foo' ORDER BY rev_id;
+      """
+    When I run "mw maint sql /tmp/q.sql"
     Then STDOUT should contain:
       """
           [actor_name] => Maintenance script
           [comment_text] => First version
           [rev_minor_edit] => 0
+      """
+    And STDOUT should contain:
+      """
+          [rev_minor_edit] => 1
       """
 
   Scenario: Put checks its input before saving
@@ -80,7 +90,13 @@ Feature: Read, edit and manage pages
 
   Scenario: Edits are made as the user from --user
     When I run "echo One | mw --user=Admin page put Foo"
-    And I run "mw maint sql --query='SELECT comment_text FROM revision JOIN comment ON rev_comment_id = comment_id WHERE rev_id = (SELECT MIN(rev_id) FROM revision WHERE rev_page = (SELECT rev_page FROM revision ORDER BY rev_id DESC LIMIT 1))'"
+    And a file "/tmp/q.sql" with:
+      """
+      SELECT comment_text FROM revision
+      JOIN actor ON rev_actor = actor_id JOIN comment ON rev_comment_id = comment_id JOIN page ON rev_page = page_id
+      WHERE page_namespace = 0 AND page_title = 'Foo' ORDER BY rev_id LIMIT 1;
+      """
+    And I run "mw maint sql /tmp/q.sql"
     Then STDOUT should contain:
       """
           [comment_text] => Created page with "One
@@ -90,7 +106,13 @@ Feature: Read, edit and manage pages
     Then STDOUT should be:
       """
       """
-    When I run "mw maint sql --query='SELECT actor_name, actor_user FROM revision JOIN actor ON rev_actor = actor_id WHERE rev_page = (SELECT rev_page FROM revision ORDER BY rev_id DESC LIMIT 1) ORDER BY rev_id'"
+    Given a file "/tmp/q.sql" with:
+      """
+      SELECT actor_name, actor_user FROM revision
+      JOIN actor ON rev_actor = actor_id JOIN comment ON rev_comment_id = comment_id JOIN page ON rev_page = page_id
+      WHERE page_namespace = 0 AND page_title = 'Foo' ORDER BY rev_id;
+      """
+    When I run "mw maint sql /tmp/q.sql"
     Then STDOUT should contain:
       """
           [actor_name] => Admin
@@ -125,10 +147,11 @@ Feature: Read, edit and manage pages
       Foo/Bar,0,false
       "Main Page",0,false
       """
-    When I run "mw page list --field=title"
-    Then STDOUT should contain:
+    When I run "mw page list --namespace=Help --fields=title,namespace --format=csv"
+    Then STDOUT should be:
       """
-      Help:Foo
+      title,namespace
+      Help:Foo,12
       """
     When I run "mw page list --prefix=foo --field=title"
     Then STDOUT should be:
@@ -142,10 +165,10 @@ Feature: Read, edit and manage pages
       """
       0
       """
-    When I run "mw page list --namespace=Help --format=count"
-    Then STDOUT should be:
+    When I run "mw page list --namespace=Help --format=ids"
+    Then STDOUT should be like:
       """
-      1
+      {id}
       """
     When I run "mw page list --namespace=0 --prefix=Foo/ --field=title"
     Then STDOUT should be:
@@ -284,11 +307,17 @@ Feature: Read, edit and manage pages
       user = Admin
       """
     When I run "cd /tmp/project && echo text | mw @prod page put Foo"
-    Then STDOUT should contain:
+    Then STDOUT should be like:
       """
-      Success: Saved 'Foo' as revision
+      Success: Saved 'Foo' as revision {id}.
       """
-    When I run "mw maint sql --query='SELECT actor_name FROM revision JOIN actor ON rev_actor = actor_id WHERE rev_id = (SELECT MAX(rev_id) FROM revision)'"
+    Given a file "/tmp/q.sql" with:
+      """
+      SELECT actor_name FROM revision
+      JOIN actor ON rev_actor = actor_id JOIN comment ON rev_comment_id = comment_id JOIN page ON rev_page = page_id
+      WHERE page_namespace = 0 AND page_title = 'Foo' ORDER BY rev_id;
+      """
+    When I run "mw maint sql /tmp/q.sql"
     Then STDOUT should contain:
       """
           [actor_name] => Admin

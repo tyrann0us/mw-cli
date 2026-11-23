@@ -61,6 +61,19 @@ class FeatureContext implements Context {
 	}
 
 	/**
+	 * @Then STDOUT should be like:
+	 */
+	public function stdoutShouldBeLike( PyStringNode $expected ): void {
+		// Like "should be", but {id} stands for any number, e.g. an ID the install assigns.
+		$pattern = str_replace( '\{id\}', '\d+', preg_quote( $expected->getRaw(), '#' ) );
+		if ( !preg_match( "#^$pattern$#", rtrim( $this->stdout, "\n" ) ) ) {
+			throw new RuntimeException(
+				"STDOUT is:\n$this->stdout\nExpected ({id} is any number):\n{$expected->getRaw()}\n\nSTDERR:\n$this->stderr"
+			);
+		}
+	}
+
+	/**
 	 * @Then STDOUT should contain:
 	 */
 	public function stdoutShouldContain( PyStringNode $expected ): void {
