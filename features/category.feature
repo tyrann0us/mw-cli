@@ -101,6 +101,12 @@ Feature: List category members and the categories of pages
       """
       Error: --namespace needs a value.
       """
+    When I try "mw category members Fruit --namespace="
+    Then the return code should be 1
+    And STDERR should contain:
+      """
+      Error: --namespace needs a value.
+      """
     When I try "mw category members '<'"
     Then the return code should be 1
     And STDERR should contain:
