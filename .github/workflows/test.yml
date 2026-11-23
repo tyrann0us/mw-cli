@@ -1,0 +1,42 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ["8.1", "8.2", "8.3", "8.4"]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - run: composer install --no-interaction --no-progress
+      - run: composer lint
+      - run: vendor/bin/phpunit
+
+  functional:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        smw: ["0", "1"]
+    env:
+      SMW: ${{ matrix.smw }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          coverage: none
+      - run: composer install --no-interaction --no-progress
+      - run: docker compose up -d --build --wait
+      - run: vendor/bin/behat --format=progress ${{ matrix.smw == '0' && '--tags=~@smw' || '' }}

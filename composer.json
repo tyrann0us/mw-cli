@@ -1,0 +1,46 @@
+{
+    "name": "tyrann0us/mw-cli",
+    "description": "Command-line interface for MediaWiki.",
+    "type": "library",
+    "license": "MIT",
+    "bin": [
+        "bin/mw"
+    ],
+    "require": {
+        "php": ">=8.1",
+        "ext-mbstring": "*"
+    },
+    "require-dev": {
+        "behat/behat": "^3.14",
+        "mediawiki/mediawiki-codesniffer": "^48",
+        "phpunit/phpunit": "^10.5 || ^11 || ^12"
+    },
+    "autoload": {
+        "psr-4": {
+            "MwCli\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "MwCli\\Tests\\": "tests/unit/"
+        }
+    },
+    "scripts": {
+        "lint": [
+            "find bin src tests features -name '*.php' -print0 | xargs -0 -n1 php -l > /dev/null && php -l bin/mw > /dev/null",
+            "phpcs"
+        ],
+        "test": [
+            "phpunit",
+            "behat"
+        ]
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        },
+        "platform": {
+            "php": "8.1.0"
+        }
+    }
+}

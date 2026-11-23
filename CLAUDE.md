@@ -14,26 +14,27 @@ Targets MediaWiki 1.43+ (LTS) and PHP 8.1+ (MediaWiki 1.43's minimum).
 composer install                      # dev deps only (PHPUnit, Behat); runtime has none
 composer test                         # unit + functional
 vendor/bin/phpunit                    # unit tests
-vendor/bin/phpunit --filter ConfigTest::testAliasOverridesPath   # single unit test
+vendor/bin/phpunit --filter ConfigTest::testUnknownAliasFails   # single unit test
 composer lint                         # php -l + phpcs (mediawiki/mediawiki-codesniffer)
 
-docker compose up -d                  # test wiki: MediaWiki 1.43 + SQLite (+ SMW, + sshd)
+docker compose up -d --build         # test wiki: MediaWiki 1.43 + SQLite + sshd
+SMW=1 docker compose up -d --build   # same, with Semantic MediaWiki
 vendor/bin/behat                      # functional tests against the test wiki
-vendor/bin/behat features/page.feature:12   # single scenario by line
+vendor/bin/behat features/cli.feature:12    # single scenario by line
 vendor/bin/behat --tags='~@smw'       # skip scenarios that need Semantic MediaWiki
 
-bin/mw --path=/var/www/w site info    # run from a checkout
+bin/mw --path=/var/www/w cli info     # run from a checkout
 ```
 
 ## Architecture
 
 Request flow for `mw [@alias] [global flags] <command> <subcommand> [args] [--assoc=args]`:
 
-1. **`bin/mw`** parses global flags, then loads config: `mw.ini` (searched upward from cwd) is merged over `~/.mw/config.ini`. Alias sections are INI sections named `[@prod]`. Config is read before MediaWiki loads, which is why it's INI (`parse_ini_file`) rather than YAML.
-2. **Remote dispatch** (`src/Runner.php`): if `--ssh` is set, either directly or through an alias, the runner removes the SSH flags, rebuilds argv and runs `ssh -T [user@]host[:port] 'cd <path> && mw …'` with `passthru`, then exits with the remote exit code. Nothing below this step runs locally.
-3. **Bootstrap** (`src/Bootstrap.php`) finds the MediaWiki root (`--path`, otherwise walk up from cwd looking for `LocalSettings.php` next to `includes/`). It then loads MediaWiki through its own maintenance entry point (`maintenance/Maintenance.php` + `RUN_MAINTENANCE_IF_MAIN`). This gives the same environment `php maintenance/run.php` gets: settings, services, extensions. `--user=<name>` sets the acting user for writes.
+1. **`bin/mw`** registers a tiny autoloader for `MwCli\` and creates `Runner`, which splits global flags (`--path`, `--ssh`, `--user`, `--quiet`) from command options and loads config (`src/Config.php`): `mw.ini` (searched upward from cwd) is merged over `~/.mw/config.ini`. Alias sections are INI sections named `[@prod]`. Config is read before MediaWiki loads, which is why it's INI (`parse_ini_file`) rather than YAML.
+2. **Remote dispatch** (`Runner::sshCommand()`): if `--ssh` is set, directly or through an alias, `bin/mw` runs `ssh -T [-p port] -- [user@]host 'mw --path=<path> …'` with `passthru` and exits with the remote exit code. The original argv is forwarded minus `--ssh` and the alias. An alias with `ssh` keeps its `path`/`user` for the remote side (`remote-path`/`remote-user`). Nothing below this step runs locally.
+3. **Bootstrap**: `Runner::wikiPath()` finds the MediaWiki root (`--path`, otherwise walk up from cwd until `maintenance/run.php` exists) and rejects versions below 1.43. `src/bootstrap.php` then does what `maintenance/run.php` does, but runs `MwCli\MwMaintenance` through `MaintenanceRunner::initForClass()`. It must be required at file scope because `Setup.php` needs global scope. `MwMaintenance::execute()` calls back into `Runner::run()`, so commands get settings, services, extensions and the DB, and MediaWiki commits and runs deferred updates afterwards. `Command::performer()` returns the `--user` (name or ID), or the "Maintenance script" system user.
 4. **Dispatch**: commands are classes in `src/Command/` extending `MwCli\Command`, found by file name (`SearchReplace.php` is `mw search-replace`). Subcommands are public methods with the signature `(array $args, array $assoc_args)`; a class with `__invoke()` has no subcommands. Help text is the method docblock (`## OPTIONS` with tokens like `<title>`, `[--format=<format>]`, then `## EXAMPLES`). `src/Synopsis.php` parses it: `mw help` prints it, and the runner rejects missing args and unknown options against it. Commands that don't load MediaWiki set `NEEDS_WIKI = false`.
-5. **Output** goes through `src/Formatter.php` for every list or record: `--format=table|json|csv|yaml|ids|count` and `--fields=`. Commands return rows and never echo them directly. Messages go through `Runner::success/warning/error()`. `error()` writes to stderr and exits 1.
+5. **Output** goes through `Formatter::items()` (lists) or `Formatter::item()` (one record): `--format=table|json|csv|yaml|ids|count`, `--fields=` and `--field=`. Tables are tab-separated when stdout isn't a TTY, which is what tests see. Messages go through `Runner::line/success/warning()`. `Runner::error()` throws `ExitException`; the runner prints it to stderr and exits 1. Never call `exit` in a command: it would skip MediaWiki's commit. `Runner::confirm()` asks unless `--yes`.
 
 Constraints that follow from loading MediaWiki in the same process:
 
@@ -55,7 +56,7 @@ Tests come in two layers:
 
 - **`tests/unit/`** (PHPUnit): logic that doesn't need MediaWiki, i.e. argv and global flag parsing, config/alias merging, building the SSH command line, and the formatter.
 - **`features/`** (Behat): one `.feature` per command group, run against the dockerized test wiki. Steps read like `Given a wiki`, `When I run "mw page get Main_Page"`, `Then STDOUT should contain:`, `Then the return code should be 1`. The step definitions are in `features/bootstrap/FeatureContext.php`. Each scenario resets the wiki from a SQLite snapshot, so scenarios are independent.
-- Scenarios tagged `@smw` need Semantic MediaWiki. Scenarios tagged `@ssh` run against the compose `sshd` service, which has `mw` installed.
+- Scenarios tagged `@smw` need Semantic MediaWiki. Scenarios tagged `@ssh` run `mw --ssh=root@localhost…` inside the container, which runs sshd and trusts its own key. Commands in steps run via `docker compose exec` in `/var/www/html` (override with `MW_CLI_EXEC`).
 
 CI (`.github/workflows/test.yml`) runs lint and unit tests on PHP 8.1 to 8.4. It runs Behat against MediaWiki 1.43, once with SMW and once without.
 
