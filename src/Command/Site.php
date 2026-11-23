@@ -38,7 +38,7 @@ class Site extends Command {
 			'name' => $config->get( MainConfigNames::Sitename ),
 			'version' => MW_VERSION,
 			'server' => $config->get( MainConfigNames::Server ),
-			'path' => $config->get( MainConfigNames::BaseDirectory ),
+			'path' => $this->cli->wikiPath(),
 			'database' => $config->get( MainConfigNames::DBtype ),
 			'language' => $config->get( MainConfigNames::LanguageCode ),
 		], $assoc_args );
