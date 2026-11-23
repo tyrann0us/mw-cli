@@ -28,6 +28,11 @@ Feature: Run Semantic MediaWiki queries
       """
       Town Hall
       """
+    When I run "mw ask '[[Street::Main Street||Corner]]|mainlabel=-' --format=count"
+    Then STDOUT should be:
+      """
+      2
+      """
     When I run "mw ask '[[Category:Nothing]]|?Street' --format=csv"
     Then STDOUT should be:
       """

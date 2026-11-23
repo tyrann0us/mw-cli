@@ -10,7 +10,7 @@ Feature: Render wikitext to HTML
       """
       <p><i>Hello</i> <a href="/index.php/Main_Page" title="Main Page">Main Page</a> on API
       """
-    When I run "cd /tmp && mw --path=/var/www/html parse --title=Sandbox < page.wiki"
+    When I run "cd /tmp && mw --path=/var/www/html parse --title=Sandbox /dev/stdin < page.wiki"
     Then STDOUT should contain:
       """
       on Sandbox

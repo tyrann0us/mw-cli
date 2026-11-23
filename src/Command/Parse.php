@@ -35,7 +35,7 @@ class Parse extends Command {
 		$title = $this->services()->getTitleFactory()->newFromText( is_string( $name ) ? $name : '' )
 			?? Runner::error( 'Invalid title.' );
 		$file = $args[0] ?? null;
-		if ( $file !== null && ( !is_file( $file ) || !is_readable( $file ) ) ) {
+		if ( $file !== null && ( is_dir( $file ) || !is_readable( $file ) ) ) {
 			Runner::error( "Can't read '$file'." );
 		}
 		$text = (string)file_get_contents( $file ?? 'php://stdin' );

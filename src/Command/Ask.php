@@ -51,7 +51,8 @@ class Ask extends Command {
 		if ( !$this->services()->getExtensionRegistry()->isLoaded( 'SemanticMediaWiki' ) ) {
 			Runner::error( 'Semantic MediaWiki is not installed on this wiki.' );
 		}
-		$params = explode( '|', $args[0] );
+		// Split on | outside [[ ]], so [[A::x||y]] stays one condition.
+		$params = preg_split( '/\|(?![^\[\]]*\]\])/', $args[0] ) ?: [];
 		if ( isset( $assoc_args['limit'] ) ) {
 			if ( !is_string( $assoc_args['limit'] ) || !ctype_digit( $assoc_args['limit'] ) ) {
 				Runner::error( '--limit must be a number.' );
@@ -75,7 +76,8 @@ class Ask extends Command {
 			$result->getPrintRequests()
 		);
 		$rows = [];
-		for ( $columns = $result->getNext(); $columns; $columns = $result->getNext() ) {
+		// A row is [] with mainlabel=- and no printouts, so compare with false.
+		for ( $columns = $result->getNext(); $columns !== false; $columns = $result->getNext() ) {
 			$row = [];
 			foreach ( $columns as $i => $column ) {
 				$values = [];
