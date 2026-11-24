@@ -2,134 +2,85 @@
 
 namespace MwCli\Command;
 
-use MediaWiki\Category\Category as MwCategory;
-use MediaWiki\Title\Title;
 use MwCli\Command;
 use MwCli\Formatter;
-use MwCli\Runner;
+use Wikimedia\Rdbms\IExpression;
+use Wikimedia\Rdbms\LikeValue;
 
 /**
- * Lists category members and the categories of pages.
+ * Lists categories.
  */
 class Category extends Command {
-	private const TYPES = [ NS_CATEGORY => 'subcat', NS_FILE => 'file' ];
-
 	/**
-	 * Lists the pages, subcategories and files in a category.
+	 * Lists the categories that have members, sorted by name.
 	 *
-	 * The namespace prefix is optional and can be in the wiki's language. Members are
-	 * sorted by their sort key, whatever their type.
+	 * The counts come from MediaWiki's category table, as on Special:Categories. A category
+	 * can have members without having a page.
 	 *
 	 * ## OPTIONS
 	 *
-	 * <category>
-	 * : Category name, e.g. Fruit or Category:Fruit.
+	 * [--prefix=<prefix>]
+	 * : Only categories whose name starts with this, without the namespace.
 	 *
-	 * [--namespace=<namespace>]
-	 * : Only members in this namespace, by number or name.
-	 *
-	 * [--type=<type>]
-	 * : Only members of this type: page, subcat or file.
+	 * [--limit=<n>]
+	 * : List at most this many categories.
 	 *
 	 * [--format=<format>]
 	 * : table, json, csv, yaml, ids or count.
 	 *
 	 * [--fields=<fields>]
-	 * : Comma-separated fields to show: id, title, namespace, type. Default: all.
+	 * : Comma-separated fields to show: title, members, pages, subcats, files. members is the
+	 * : sum of the other three. Default: title, pages, subcats, files.
 	 *
 	 * [--field=<field>]
 	 * : Prints only the value of this field.
 	 *
 	 * ## EXAMPLES
 	 *
-	 *     mw category members Fruit
-	 *     mw category members Category:Fruit --type=subcat --field=title
-	 *     mw category members Fruit --namespace=File --format=count
+	 *     mw category list
+	 *     mw category list --prefix=Fruit --field=title
+	 *     mw category list --limit=10 --format=csv
 	 *
 	 * @param string[] $args
 	 * @param array<string,string|bool> $assoc_args
 	 */
-	public function members( array $args, array $assoc_args ): void {
-		$type = $assoc_args['type'] ?? null;
-		$types = [ 'page', ...self::TYPES ];
-		if ( $type !== null && !in_array( $type, $types, true ) ) {
-			Runner::error( 'Invalid type. Use one of: ' . implode( ', ', $types ) . '.' );
+	public function list( array $args, array $assoc_args ): void {
+		$db = $this->services()->getConnectionProvider()->getReplicaDatabase();
+		$query = $db->newSelectQueryBuilder()
+			->select( [ 'cat_title', 'cat_pages', 'cat_subcats', 'cat_files' ] )
+			->from( 'category' )
+			->where( 'cat_pages > 0' )
+			->orderBy( 'cat_title' )
+			->caller( __METHOD__ );
+		$limit = $this->limit( $assoc_args );
+		if ( $limit !== null ) {
+			$query->limit( $limit );
 		}
-		$ns = isset( $assoc_args['namespace'] ) ? $this->namespace( (string)$assoc_args['namespace'] ) : null;
+		if ( isset( $assoc_args['prefix'] ) ) {
+			$prefix = strtr( (string)$assoc_args['prefix'], ' ', '_' );
+			if ( $this->services()->getNamespaceInfo()->isCapitalized( NS_CATEGORY ) ) {
+				$prefix = $this->services()->getContentLanguage()->ucfirst( $prefix );
+			}
+			$query->andWhere( $db->expr( 'cat_title', IExpression::LIKE, new LikeValue( $prefix, $db->anyString() ) ) );
+		}
 
+		$formatter = $this->services()->getTitleFormatter();
 		$rows = [];
-		foreach ( MwCategory::newFromTitle( $this->categoryTitle( $args[0] ) )->getMembers() as $title ) {
-			$row = [
-				'id' => $title->getArticleID(),
-				'title' => $title->getPrefixedText(),
-				'namespace' => $title->getNamespace(),
-				'type' => self::TYPES[$title->getNamespace()] ?? 'page',
+		$res = $query->fetchResultSet();
+		while ( $row = $res->fetchObject() ) {
+			// cat_pages counts all members, like Category::getMemberCount().
+			$members = (int)$row->cat_pages;
+			$subcats = (int)$row->cat_subcats;
+			$files = (int)$row->cat_files;
+			$rows[] = [
+				'title' => $formatter->formatTitle( NS_CATEGORY, $row->cat_title ),
+				'members' => $members,
+				// The counts can drift apart, so never below 0, as in Category::getPageCount().
+				'pages' => max( 0, $members - $subcats - $files ),
+				'subcats' => $subcats,
+				'files' => $files,
 			];
-			if ( ( $ns === null || $ns === $row['namespace'] ) && ( $type === null || $type === $row['type'] ) ) {
-				$rows[] = $row;
-			}
 		}
-		Formatter::items( $rows, $assoc_args, [ 'id', 'title', 'namespace', 'type' ] );
-	}
-
-	/**
-	 * Lists the categories that pages are in, one row per page and category.
-	 *
-	 * ## OPTIONS
-	 *
-	 * <title>...
-	 * : Page titles.
-	 *
-	 * [--format=<format>]
-	 * : table, json, csv, yaml, ids or count.
-	 *
-	 * [--fields=<fields>]
-	 * : Comma-separated fields to show: title, category. Default: both.
-	 *
-	 * [--field=<field>]
-	 * : Prints only the value of this field.
-	 *
-	 * ## EXAMPLES
-	 *
-	 *     mw category of Main_Page
-	 *     mw category of Apple Banana --field=category
-	 *
-	 * @param string[] $args
-	 * @param array<string,string|bool> $assoc_args
-	 */
-	public function of( array $args, array $assoc_args ): void {
-		$rows = [];
-		foreach ( $args as $name ) {
-			$page = $this->services()->getTitleFactory()->newFromText( $name );
-			if ( !$page?->exists() ) {
-				Runner::error( "Page not found: $name." );
-			}
-			$categories = [];
-			foreach ( $this->services()->getWikiPageFactory()->newFromTitle( $page )->getCategories() as $category ) {
-				$categories[] = $category->getPrefixedText();
-			}
-			sort( $categories );
-			foreach ( $categories as $category ) {
-				// Keyed, so a page given twice is listed once.
-				$row = [ 'title' => $page->getPrefixedText(), 'category' => $category ];
-				$rows[implode( '|', $row )] = $row;
-			}
-		}
-		Formatter::items( $rows, $assoc_args, [ 'title', 'category' ] );
-	}
-
-	/**
-	 * The category title for a name with or without the (localized) namespace prefix.
-	 */
-	private function categoryTitle( string $name ): Title {
-		$factory = $this->services()->getTitleFactory();
-		// A leading colon, as in [[:Category:Foo]], is allowed.
-		$text = ltrim( $name, ':' );
-		$title = $factory->newFromText( $text, NS_CATEGORY );
-		if ( $title && $title->getNamespace() !== NS_CATEGORY ) {
-			// "Help:Foo" names the category Category:Help:Foo, not the help page.
-			$title = $factory->makeTitleSafe( NS_CATEGORY, $text );
-		}
-		return $title ?? Runner::error( "Invalid category name: $name." );
+		Formatter::items( $rows, $assoc_args, [ 'title', 'pages', 'subcats', 'files' ] );
 	}
 }

@@ -59,4 +59,20 @@ abstract class Command {
 		}
 		return $index;
 	}
+
+	/**
+	 * --limit as a number, or null without it. Fails unless it's a positive integer.
+	 *
+	 * @param array<string,string|bool> $assoc_args
+	 */
+	protected function limit( array $assoc_args ): ?int {
+		if ( !isset( $assoc_args['limit'] ) ) {
+			return null;
+		}
+		$limit = (string)$assoc_args['limit'];
+		if ( !ctype_digit( $limit ) || (int)$limit < 1 ) {
+			Runner::error( '--limit must be a positive number.' );
+		}
+		return (int)$limit;
+	}
 }

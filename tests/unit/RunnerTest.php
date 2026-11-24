@@ -2,6 +2,7 @@
 
 namespace MwCli\Tests;
 
+use MwCli\Command\Help;
 use MwCli\ExitException;
 use MwCli\Runner;
 use PHPUnit\Framework\TestCase;
@@ -41,6 +42,56 @@ class RunnerTest extends TestCase {
 		$this->assertSame( [ 'MwCli\Command\Cli', 'version', [ 'x' ] ], $cli->resolve( [ 'cli', 'version', 'x' ] ) );
 		$this->assertSame( [ 'MwCli\Command\Cli', null, [] ], $cli->resolve( [ 'cli' ] ) );
 		$this->assertSame( [ 'MwCli\Command\Help', '__invoke', [ 'cli' ] ], $cli->resolve( [ 'help', 'cli' ] ) );
+	}
+
+	public function testResolveNestedSubcommand(): void {
+		$cli = new Runner( [], $this->dir, null );
+		$this->assertSame(
+			[ 'MwCli\Command\Page', 'categoryList', [ 'Main Page' ] ],
+			$cli->resolve( [ 'page', 'category', 'list', 'Main Page' ] )
+		);
+		// The longest run of words that names a subcommand wins; the rest are args.
+		$this->assertSame( [ 'MwCli\Command\Page', 'list', [ 'category' ] ], $cli->resolve( [ 'page', 'list', 'category' ] ) );
+		$this->assertSame( [ 'MwCli\Command\Page', null, [ 'category' ] ], $cli->resolve( [ 'page', 'category' ] ) );
+		$this->assertSame( [ 'MwCli\Command\Page', null, [] ], $cli->resolve( [ 'page' ] ) );
+		$this->assertSame( 'category list', Runner::subcommandName( 'categoryList' ) );
+		$this->assertSame( 'mw page category list <title> [--limit=<n>] [--format=<format>] [--fields=<fields>] [--field=<field>]', $cli->usage( 'MwCli\Command\Page', 'categoryList' ) );
+	}
+
+	public function testCommandWordsSkipArgs(): void {
+		$this->assertSame( [ 'page', 'category', 'list' ], ( new Runner( [ 'page', 'category', 'list', 'Foo' ], $this->dir, null ) )->commandWords() );
+		$this->assertSame( [ 'page', 'category' ], ( new Runner( [ 'page', 'category' ], $this->dir, null ) )->commandWords() );
+		$this->assertSame( [ 'maint' ], ( new Runner( [ 'maint', 'edit' ], $this->dir, null ) )->commandWords() );
+		$cli = new Runner( [ 'page', 'category', 'list', 'Foo', '--format=json' ], $this->dir, null );
+		$this->assertSame( [ 'Foo', '--format=json' ], $cli->rawArgs() );
+	}
+
+	public function testUnknownNestedSubcommandFails(): void {
+		$cli = new Runner( [], $this->dir, null );
+		foreach ( [
+			"'nope' is not a registered subcommand of 'page category'. See 'mw help page category'." => [ 'page', 'category', 'nope' ],
+			"'category-list' is not a registered subcommand of 'page'. See 'mw help page'." => [ 'page', 'category-list' ],
+			"'categoryList' is not a registered subcommand of 'page'. See 'mw help page'." => [ 'page', 'categoryList' ],
+		] as $message => $args ) {
+			try {
+				$cli->resolve( $args );
+				$this->fail( implode( ' ', $args ) . ' was accepted' );
+			} catch ( ExitException $e ) {
+				$this->assertSame( $message, $e->getMessage() );
+			}
+		}
+	}
+
+	public function testHelpForNestedSubcommands(): void {
+		$cli = new Runner( [], $this->dir, null );
+		ob_start();
+		( new Help( $cli ) )->__invoke( [ 'page', 'category', 'list' ], [] );
+		( new Help( $cli ) )->__invoke( [ 'page', 'category' ], [] );
+		( new Help( $cli ) )->__invoke( [ 'page' ], [] );
+		$out = (string)ob_get_clean();
+		$this->assertStringContainsString( "NAME\n\n  mw page category list <title>", $out );
+		$this->assertStringContainsString( "usage: mw page category <subcommand>\n\nSubcommands:\n  list  Lists the categories of a page.\n", $out );
+		$this->assertMatchesRegularExpression( '/^  category list +Lists the categories of a page\.$/m', $out );
 	}
 
 	public function testValidateSkipsHelpAndRejectsBadArgs(): void {

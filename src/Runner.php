@@ -192,7 +192,7 @@ class Runner {
 		try {
 			[ $command, $method, $args ] = $this->resolve( $this->args );
 			if ( $method === null || !empty( $this->assoc['help'] ) ) {
-				( new Command\Help( $this ) )->__invoke( array_slice( $this->args, 0, $method === '__invoke' ? 1 : 2 ), [] );
+				( new Command\Help( $this ) )->__invoke( $this->commandWords(), [] );
 				return 0;
 			}
 			$this->validate();
@@ -226,8 +226,7 @@ class Runner {
 	 * @return string[]
 	 */
 	public function rawArgs(): array {
-		[ , $method ] = $this->resolve( $this->args );
-		$skip = $method === '__invoke' ? 1 : 2;
+		$skip = count( $this->commandWords() );
 		$out = [];
 		foreach ( $this->tokens as $i => $token ) {
 			if ( $token === '--' ) {
@@ -247,6 +246,21 @@ class Runner {
 	}
 
 	/**
+	 * The command and subcommand words of this invocation, e.g. [ 'page', 'category', 'list' ].
+	 *
+	 * @return string[]
+	 */
+	public function commandWords(): array {
+		[ , $method, $args ] = $this->resolve( $this->args );
+		return array_slice( $this->args, 0, count( $this->args ) - ( $method === null ? 0 : count( $args ) ) );
+	}
+
+	/**
+	 * Finds the method for the command words. A method named in camelCase is a subcommand of
+	 * several words (categoryList is `category list`); the longest run of words that names one wins.
+	 * Words that start subcommand names without naming one (`page category`) are a group:
+	 * the method is then null and the group's words are returned in place of the args.
+	 *
 	 * @param string[] $args
 	 * @return array{0: class-string<Command>, 1: ?string, 2: string[]} Class, method (null: show help), args.
 	 */
@@ -259,15 +273,26 @@ class Runner {
 		if ( method_exists( $class, '__invoke' ) ) {
 			return [ $class, '__invoke', array_slice( $args, 1 ) ];
 		}
-		$sub = $args[1] ?? null;
-		if ( $sub === null ) {
-			return [ $class, null, [] ];
+		$methods = [];
+		foreach ( self::subcommands( $class ) as $method ) {
+			$methods[self::subcommandName( $method )] = $method;
 		}
-		$method = lcfirst( str_replace( '-', '', ucwords( $sub, '-' ) ) );
-		if ( !in_array( $method, self::subcommands( $class ), true ) ) {
-			self::error( "'$sub' is not a registered subcommand of '$name'. See 'mw help $name'." );
+		for ( $n = count( $args ) - 1; $n > 0; $n-- ) {
+			$words = implode( ' ', array_slice( $args, 1, $n ) );
+			if ( isset( $methods[$words] ) ) {
+				return [ $class, $methods[$words], array_slice( $args, $n + 1 ) ];
+			}
 		}
-		return [ $class, $method, array_slice( $args, 2 ) ];
+		$group = [];
+		foreach ( array_slice( $args, 1 ) as $word ) {
+			$prefix = implode( ' ', [ ...$group, $word ] ) . ' ';
+			if ( !array_filter( array_keys( $methods ), static fn ( $sub ) => str_starts_with( $sub, $prefix ) ) ) {
+				$parent = implode( ' ', [ $name, ...$group ] );
+				self::error( "'$word' is not a registered subcommand of '$parent'. See 'mw help $parent'." );
+			}
+			$group[] = $word;
+		}
+		return [ $class, null, $group ];
 	}
 
 	/**
@@ -286,9 +311,16 @@ class Runner {
 
 	public function usage( string $class, string $method ): string {
 		$name = array_search( $class, $this->commands, true );
-		$sub = $method === '__invoke' ? '' : ' ' . self::kebab( $method );
+		$sub = $method === '__invoke' ? '' : ' ' . self::subcommandName( $method );
 		$synopsis = Synopsis::parse( ( new ReflectionMethod( $class, $method ) )->getDocComment() ?: '' )['synopsis'];
 		return trim( "mw $name$sub $synopsis" );
+	}
+
+	/**
+	 * The subcommand's words: categoryList is `category list`.
+	 */
+	public static function subcommandName( string $method ): string {
+		return str_replace( '-', ' ', self::kebab( $method ) );
 	}
 
 	/**

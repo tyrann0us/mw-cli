@@ -21,6 +21,43 @@ Feature: Run mw, get help and use global flags
       version  Prints the mw version.
       """
 
+  Scenario: Subcommands of several words are typed and shown as separate words
+    When I run "mw help page category list"
+    Then STDOUT should contain:
+      """
+      mw page category list <title> [--limit=<n>]
+      """
+    When I run "mw page category list --help"
+    Then STDOUT should contain:
+      """
+      Lists the categories of a page.
+      """
+    When I run "mw page category"
+    Then STDOUT should be:
+      """
+      usage: mw page category <subcommand>
+
+      Subcommands:
+        list  Lists the categories of a page.
+      """
+    When I run "mw page"
+    Then STDOUT should contain:
+      """
+        category list  Lists the categories of a page.
+      """
+    When I try "mw page category nope"
+    Then the return code should be 1
+    And STDERR should contain:
+      """
+      Error: 'nope' is not a registered subcommand of 'page category'. See 'mw help page category'.
+      """
+    When I try "mw page category-list Main_Page"
+    Then the return code should be 1
+    And STDERR should contain:
+      """
+      Error: 'category-list' is not a registered subcommand of 'page'. See 'mw help page'.
+      """
+
   Scenario: Show the mw version and environment
     When I run "mw cli version"
     Then STDOUT should be:

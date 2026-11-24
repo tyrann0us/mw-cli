@@ -27,6 +27,9 @@ class Backlinks extends Command {
 	 * [--namespace=<ns>]
 	 * : Only list pages in this namespace: a number (0 for main) or a name.
 	 *
+	 * [--limit=<n>]
+	 * : List at most this many pages.
+	 *
 	 * [--format=<format>]
 	 * : table, json, csv, yaml, ids or count.
 	 *
@@ -57,6 +60,10 @@ class Backlinks extends Command {
 			->where( $this->services()->getLinksMigration()->getLinksConditions( static::TABLE, $target ) )
 			->orderBy( [ 'page_namespace', 'page_title' ] )
 			->caller( __METHOD__ );
+		$limit = $this->limit( $assoc_args );
+		if ( $limit !== null ) {
+			$query->limit( $limit );
+		}
 		if ( isset( $assoc_args['namespace'] ) ) {
 			$query->andWhere( [ static::FROM . '_namespace' => $this->namespace( (string)$assoc_args['namespace'] ) ] );
 		}

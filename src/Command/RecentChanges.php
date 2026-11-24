@@ -54,10 +54,6 @@ class RecentChanges extends Command {
 	 * @param array<string,string|bool> $assoc_args
 	 */
 	public function __invoke( array $args, array $assoc_args ): void {
-		$limit = (string)( $assoc_args['limit'] ?? '50' );
-		if ( !ctype_digit( $limit ) || (int)$limit < 1 ) {
-			Runner::error( '--limit must be a positive number.' );
-		}
 		$dbr = $this->services()->getConnectionProvider()->getReplicaDatabase();
 		$query = $dbr->newSelectQueryBuilder()
 			->select( [
@@ -68,7 +64,7 @@ class RecentChanges extends Command {
 			->join( 'actor', null, 'actor_id = rc_actor' )
 			->join( 'comment', null, 'comment_id = rc_comment_id' )
 			->orderBy( [ 'rc_timestamp', 'rc_id' ], 'DESC' )
-			->limit( (int)$limit )
+			->limit( $this->limit( $assoc_args ) ?? 50 )
 			->caller( __METHOD__ );
 		if ( isset( $assoc_args['namespace'] ) ) {
 			// Skip log entries with a hidden target, or the filter would reveal their namespace.

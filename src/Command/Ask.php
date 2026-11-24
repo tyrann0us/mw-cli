@@ -57,11 +57,9 @@ class Ask extends Command {
 		$params = array_map( 'trim', preg_split( '/(?<!\|)\|(?!\|)(?![^\[\]]*\]\])/', $args[0] ) ?: [] );
 		// Output goes through --format. format=count or format=debug would change the query mode and limit.
 		$params = preg_grep( '/^format\s*=/i', $params, PREG_GREP_INVERT ) ?: [];
-		if ( isset( $assoc_args['limit'] ) ) {
-			if ( !ctype_digit( (string)$assoc_args['limit'] ) || (int)$assoc_args['limit'] < 1 ) {
-				Runner::error( '--limit must be a positive number.' );
-			}
-			$params[] = 'limit=' . $assoc_args['limit'];
+		$limit = $this->limit( $assoc_args );
+		if ( $limit !== null ) {
+			$params[] = "limit=$limit";
 		}
 		[ $query ] = QueryProcessor::getQueryAndParamsFromFunctionParams(
 			$params, SMW_OUTPUT_WIKI, QueryProcessor::SPECIAL_PAGE, false

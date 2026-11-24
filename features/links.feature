@@ -25,6 +25,11 @@ Feature: List pages that link to or transclude a page
       """
       Linker
       """
+    When I run "mw backlinks Target --limit=1 --field=title"
+    Then STDOUT should be:
+      """
+      Linker
+      """
     When I run "mw backlinks Loner --format=count"
     Then STDOUT should be:
       """
@@ -41,6 +46,11 @@ Feature: List pages that link to or transclude a page
     Then STDOUT should be like:
       """
       {id}
+      """
+    When I run "mw transclusions Greeting --limit=1 --format=count"
+    Then STDOUT should be:
+      """
+      1
       """
     When I run "mw transclusions Template:Greeting --namespace='Help talk' --format=count"
     Then STDOUT should be:

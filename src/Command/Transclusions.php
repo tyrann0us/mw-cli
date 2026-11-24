@@ -21,6 +21,9 @@ class Transclusions extends Backlinks {
 	 * [--namespace=<ns>]
 	 * : Only list pages in this namespace: a number (0 for main) or a name.
 	 *
+	 * [--limit=<n>]
+	 * : List at most this many pages.
+	 *
 	 * [--format=<format>]
 	 * : table, json, csv, yaml, ids or count.
 	 *
