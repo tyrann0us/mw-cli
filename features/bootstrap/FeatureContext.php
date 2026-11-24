@@ -126,7 +126,8 @@ class FeatureContext implements Context
     {
         $prefix = getenv('MW_CLI_EXEC') ?: 'docker compose exec -T -w /var/www/html wiki';
         // stderr goes to a file: reading two pipes one after the other can deadlock.
-        $stderr = (string) tempnam(sys_get_temp_dir(), 'mw-cli-stderr');
+        $stderr = tempnam(sys_get_temp_dir(), 'mw-cli-stderr')
+            ?: throw new RuntimeException('Could not create a temp file for stderr.');
         $pipes = [];
         $proc = proc_open(
             "$prefix sh -c " . escapeshellarg($command),

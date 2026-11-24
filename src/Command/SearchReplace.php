@@ -192,12 +192,12 @@ class SearchReplace extends Command
             $performer
         );
         $revision = null;
-        $status = StatusValue::newFatal('edit-conflict');
-        if (!$updater->hasEditConflict($revisionId)) {
+        $conflict = $updater->hasEditConflict($revisionId);
+        if (!$conflict) {
             $updater->setContent(SlotRecord::MAIN, $content);
             $revision = $updater->saveRevision($comment, $flags);
-            $status = $updater->getStatus();
         }
+        $status = $conflict ? StatusValue::newFatal('edit-conflict') : $updater->getStatus();
         // Earlier pages are saved already, so a failed page doesn't stop the others.
         if (!$status->isOK()) {
             $statusFormatter = $this->services()->getFormatterFactory()

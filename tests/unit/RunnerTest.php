@@ -37,7 +37,8 @@ class RunnerTest extends TestCase
     {
         $cli = new Runner(['page', 'list', '--user=Admin', '--format=ids'], $this->dir, null);
         $this->assertSame('Admin', $cli->flag('user'));
-        $this->assertSame(['format' => 'ids'], $cli->options());
+        // Throws "Unknown parameter: --user" if the global flag reached the command options.
+        $cli->validate();
     }
 
     public function testCommandsAreDiscoveredFromFileNames(): void

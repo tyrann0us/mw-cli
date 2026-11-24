@@ -7,11 +7,13 @@ namespace MwCli\Command;
 use DateTimeImmutable;
 use DateTimeZone;
 use MediaWiki\Revision\RevisionRecord;
+use MediaWiki\Title\TitleFormatter;
 use MediaWiki\User\UserNameUtils;
 use MwCli\Command;
 use MwCli\Formatter;
 use MwCli\Runner;
 use stdClass;
+use Wikimedia\Rdbms\IReadableDatabase;
 use Wikimedia\Rdbms\SelectQueryBuilder;
 
 /**
@@ -72,12 +74,14 @@ class RecentChanges extends Command
             ->orderBy(['rc_timestamp', 'rc_id'], 'DESC')
             ->limit($this->limit($assocArgs) ?? 50)
             ->caller(__METHOD__);
-        $this->filter($query, $assocArgs);
+        $this->filter($query, $dbr, $assocArgs);
 
+        $formatter = $this->services()->getTitleFormatter();
+        $utc = new DateTimeZone('UTC');
         $rows = [];
         foreach ($query->fetchResultSet() as $row) {
             /** @var stdClass $row */
-            $rows[] = $this->row($row);
+            $rows[] = $this->row($row, $formatter, $utc);
         }
         $defaultFields = ['id', 'timestamp', 'type', 'title', 'user', 'comment'];
         Formatter::items($rows, $assocArgs, $defaultFields);
@@ -88,9 +92,12 @@ class RecentChanges extends Command
      *
      * @param array<string,string|bool> $assocArgs
      */
-    private function filter(SelectQueryBuilder $query, array $assocArgs): void
-    {
-        $dbr = $this->services()->getConnectionProvider()->getReplicaDatabase();
+    private function filter(
+        SelectQueryBuilder $query,
+        IReadableDatabase $dbr,
+        array $assocArgs
+    ): void {
+
         if (isset($assocArgs['namespace'])) {
             // Skip log entries with a hidden target, or the filter would reveal their namespace.
             $actionShown = $dbr->bitAnd('rc_deleted', self::DELETED_ACTION) . ' = 0';
@@ -123,15 +130,13 @@ class RecentChanges extends Command
     /**
      * @return array<string,mixed>
      */
-    private function row(stdClass $row): array
+    private function row(stdClass $row, TitleFormatter $formatter, DateTimeZone $utc): array
     {
-        $utc = new DateTimeZone('UTC');
         $hidden = (int) $row->rc_deleted;
         $hideAction = $row->rc_log_type !== null && $hidden & self::DELETED_ACTION;
         $title = $hideAction
             ? null
-            : $this->services()->getTitleFormatter()
-                ->formatTitle((int) $row->rc_namespace, $row->rc_title);
+            : $formatter->formatTitle((int) $row->rc_namespace, $row->rc_title);
         return [
             'id' => (int) $row->rc_id,
             // PHP reads YmdHis (MySQL, SQLite) and PostgreSQL timestamps, which may carry an

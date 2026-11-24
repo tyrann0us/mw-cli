@@ -79,14 +79,6 @@ class Runner
     }
 
     /**
-     * @return array<string,string|bool> Command options, without the global flags.
-     */
-    public function options(): array
-    {
-        return $this->assoc;
-    }
-
-    /**
      * @return string[] Config files that were read.
      */
     public function configFiles(): array
