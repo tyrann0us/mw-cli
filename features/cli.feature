@@ -103,6 +103,14 @@ Feature: Run mw, get help and use global flags
       """
 
   @ssh
+  Scenario: A RemoteCommand in the SSH config doesn't stop mw
+    When I run "mw --ssh=root@remotecmd/var/www/html site info --field=name"
+    Then STDOUT should be:
+      """
+      Test Wiki
+      """
+
+  @ssh
   Scenario: Run a command through an SSH alias
     Given a file "/tmp/project/mw.ini" with:
       """

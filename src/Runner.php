@@ -96,8 +96,10 @@ class Runner {
 
 	/**
 	 * The ssh command line that runs this invocation on the remote host, or null for a local run.
+	 *
+	 * @param bool|null $tty Whether stdin and stdout are terminals; detected when null.
 	 */
-	public function sshCommand(): ?string {
+	public function sshCommand( ?bool $tty = null ): ?string {
 		$ssh = $this->flag( 'ssh' );
 		if ( $ssh === null ) {
 			return null;
@@ -122,7 +124,13 @@ class Runner {
 		}
 
 		$remote = implode( ' ', array_map( 'escapeshellarg', [ 'mw', ...$forward ] ) );
-		return 'ssh ' . ( stream_isatty( STDOUT ) ? '-t' : '-T' )
+		// A RemoteCommand in ~/.ssh/config would make ssh refuse the command we pass. This also
+		// drops one set on purpose, such as sudo to the web user: mw then runs as the login user.
+		// ssh allocates a terminal only when stdin is one too, and then prints "Connection to …
+		// closed." at log level INFO. LogLevel=ERROR hides it, along with other INFO-level warnings
+		// and pre-login banners; errors such as a changed host key still show.
+		$tty ??= stream_isatty( STDIN ) && stream_isatty( STDOUT );
+		return 'ssh ' . ( $tty ? '-t -o LogLevel=ERROR' : '-T' ) . ' -o RemoteCommand=none'
 			. ( ( $m[3] ?? '' ) !== '' ? " -p $m[3]" : '' )
 			. ' -- ' . escapeshellarg( $target ) . ' ' . escapeshellarg( $remote );
 	}
