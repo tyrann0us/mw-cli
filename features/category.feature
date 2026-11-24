@@ -22,6 +22,8 @@ Feature: List categories and the categories of a page
       [[Category:Help:Guides]]
       """
     When I run "mw maint importTextFiles --quiet /tmp/pages/*"
+    # Newer MediaWiki versions update category counts in a job.
+    And I run "mw maint runJobs --quiet"
 
   Scenario: Categories with members are listed with their counts
     # Scoped with --prefix: Semantic MediaWiki adds categories of its own.
@@ -62,6 +64,7 @@ Feature: List categories and the categories of a page
   Scenario: An emptied category is not listed
     When I run "echo 'No more fruit' | mw page put Apple && echo 'No more fruit' | mw page put Banana"
     And I run "echo 'Gone' | mw page put Category:Citrus && echo 'Gone' | mw page put File:Pear"
+    And I run "mw maint runJobs --quiet"
     And I run "mw category list --prefix=Fruit --format=count"
     Then STDOUT should be:
       """

@@ -14,8 +14,9 @@ class Category extends Command {
 	/**
 	 * Lists the categories that have members, sorted by name.
 	 *
-	 * The counts come from MediaWiki's category table, as on Special:Categories. A category
-	 * can have members without having a page.
+	 * The counts come from MediaWiki's category table, as on Special:Categories. Newer
+	 * MediaWiki versions update them in a job, so they can lag behind recent edits until the
+	 * job queue has run. A category can have members without having a page.
 	 *
 	 * ## OPTIONS
 	 *
