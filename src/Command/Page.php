@@ -13,8 +13,6 @@ use MwCli\Formatter;
 use MwCli\Runner;
 use StatusValue;
 use Wikimedia\ParamValidator\TypeDef\ExpiryDef;
-use Wikimedia\Rdbms\IExpression;
-use Wikimedia\Rdbms\LikeValue;
 
 /**
  * Reads, edits, lists, deletes, moves, protects and purges pages, and lists their categories.
@@ -162,11 +160,7 @@ class Page extends Command {
 			$query->whereNamespace( $namespace );
 		}
 		if ( isset( $assoc_args['prefix'] ) ) {
-			$prefix = strtr( (string)$assoc_args['prefix'], ' ', '_' );
-			if ( $this->services()->getNamespaceInfo()->isCapitalized( $namespace ?? NS_MAIN ) ) {
-				$prefix = $this->services()->getContentLanguage()->ucfirst( $prefix );
-			}
-			$query->where( $db->expr( 'page_title', IExpression::LIKE, new LikeValue( $prefix, $db->anyString() ) ) );
+			$query->where( $this->titlePrefix( $db, 'page_title', (string)$assoc_args['prefix'], $namespace ?? NS_MAIN ) );
 		}
 		if ( isset( $assoc_args['category'] ) ) {
 			// getMembers() hides the categorylinks schema change after 1.43. It only collects the IDs,

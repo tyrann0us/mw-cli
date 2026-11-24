@@ -4,8 +4,6 @@ namespace MwCli\Command;
 
 use MwCli\Command;
 use MwCli\Formatter;
-use Wikimedia\Rdbms\IExpression;
-use Wikimedia\Rdbms\LikeValue;
 
 /**
  * Lists categories.
@@ -58,11 +56,7 @@ class Category extends Command {
 			$query->limit( $limit );
 		}
 		if ( isset( $assoc_args['prefix'] ) ) {
-			$prefix = strtr( (string)$assoc_args['prefix'], ' ', '_' );
-			if ( $this->services()->getNamespaceInfo()->isCapitalized( NS_CATEGORY ) ) {
-				$prefix = $this->services()->getContentLanguage()->ucfirst( $prefix );
-			}
-			$query->andWhere( $db->expr( 'cat_title', IExpression::LIKE, new LikeValue( $prefix, $db->anyString() ) ) );
+			$query->andWhere( $this->titlePrefix( $db, 'cat_title', (string)$assoc_args['prefix'], NS_CATEGORY ) );
 		}
 
 		$formatter = $this->services()->getTitleFormatter();

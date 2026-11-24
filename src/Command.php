@@ -4,6 +4,9 @@ namespace MwCli;
 
 use MediaWiki\MediaWikiServices;
 use MediaWiki\User\User;
+use Wikimedia\Rdbms\IExpression;
+use Wikimedia\Rdbms\IReadableDatabase;
+use Wikimedia\Rdbms\LikeValue;
 
 /**
  * Base for classes in src/Command/. The file name is the command name (SearchReplace.php is
@@ -74,5 +77,16 @@ abstract class Command {
 			Runner::error( '--limit must be a positive number.' );
 		}
 		return (int)$limit;
+	}
+
+	/**
+	 * A condition for titles in this DB key field that start with the prefix, written as on a page.
+	 */
+	protected function titlePrefix( IReadableDatabase $db, string $field, string $prefix, int $namespace ): IExpression {
+		$prefix = strtr( $prefix, ' ', '_' );
+		if ( $this->services()->getNamespaceInfo()->isCapitalized( $namespace ) ) {
+			$prefix = $this->services()->getContentLanguage()->ucfirst( $prefix );
+		}
+		return $db->expr( $field, IExpression::LIKE, new LikeValue( $prefix, $db->anyString() ) );
 	}
 }
