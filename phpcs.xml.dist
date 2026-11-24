@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<ruleset>
+  <!-- Use colors, and show sniff error codes and progress. -->
+  <arg name="colors"/>
+  <arg value="sp"/>
+  <!-- Recommended Syde PHP Coding Standard rules. -->
+  <rule ref="Syde-Extra">
+    <!--
+    mw is a CLI tool that runs inside MediaWiki, not WordPress. These sniffs
+    point to WordPress APIs (WP_Filesystem, esc_html(), wp_die()) that don't
+    exist here, and output goes to a terminal, not a browser.
+    -->
+    <exclude name="WordPress.WP.AlternativeFunctions"/>
+    <exclude name="WordPress.Security.EscapeOutput"/>
+    <exclude name="WordPress.PHP.DiscouragedPHPFunctions"/>
+    <exclude name="WordPress.PHP.DevelopmentFunctions"/>
+  </rule>
+  <!-- PSR-4 namespace configuration. -->
+  <rule ref="SlevomatCodingStandard.Files.TypeNameMatchesFileName">
+    <properties>
+      <property name="rootNamespaces" type="array">
+        <element key="src" value="MwCli"/>
+        <element key="tests/unit" value="MwCli\Tests"/>
+      </property>
+    </properties>
+  </rule>
+  <exclude-pattern>*/vendor/*</exclude-pattern>
+  <config name="testVersion" value="8.1-"/>
+  <file>./bin/mw</file>
+  <file>./src</file>
+  <file>./tests</file>
+  <file>./features</file>
+  <arg name="extensions" value="php"/>
+</ruleset>
