@@ -16,7 +16,7 @@ composer test                         # unit + functional
 vendor/bin/phpunit                    # unit tests
 vendor/bin/phpunit --filter ConfigTest::testUnknownAliasFails   # single unit test
 composer lint                         # php -l + phpcs (syde/phpcs, phpcs.xml.dist); warnings fail too
-composer phpcs:fix                    # phpcbf. phpcs skips bin/mw (no .php extension), so lint pipes it in
+composer phpcs:fix                    # phpcbf. phpcs skips bin/mw (no .php extension): only lint checks it, via stdin; fix it by hand
 composer phpstan                      # level 8 on src/ and bin/mw, once against MediaWiki 1.43 and once against 1.46
 
 docker compose up -d --build --wait  # test wiki: MediaWiki 1.43 + SQLite + sshd

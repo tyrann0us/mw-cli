@@ -39,6 +39,10 @@ class RunnerTest extends TestCase
         $this->assertSame('Admin', $cli->flag('user'));
         // Throws "Unknown parameter: --user" if the global flag reached the command options.
         $cli->validate();
+        // Command options stay with the command.
+        $this->expectException(ExitException::class);
+        $this->expectExceptionMessage('Unknown parameter: --nope.');
+        (new Runner(['page', 'list', '--user=Admin', '--nope'], $this->dir, null))->validate();
     }
 
     public function testCommandsAreDiscoveredFromFileNames(): void

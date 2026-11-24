@@ -34,7 +34,7 @@ class Synopsis
                 break;
             }
         }
-        $text = trim(implode("\n", $lines));
+        $text = trim(implode("\n", self::joinDescriptions($lines)));
         $out = [
             'summary' => trim(strtok($text, "\n") ?: ''),
             'text' => $text,
@@ -53,6 +53,28 @@ class Synopsis
             }
         }
         $out['synopsis'] = implode(' ', $tokens);
+        return $out;
+    }
+
+    /**
+     * Joins wrapped option descriptions (": …" plus unindented lines) into one line each.
+     *
+     * @param string[] $lines
+     * @return string[]
+     */
+    private static function joinDescriptions(array $lines): array
+    {
+        $out = [];
+        foreach ($lines as $line) {
+            $last = count($out) - 1;
+            $continues = $last >= 0 && str_starts_with($out[$last], ': ')
+                && $line !== '' && !str_starts_with($line, ' ');
+            if ($continues) {
+                $out[$last] .= " $line";
+                continue;
+            }
+            $out[] = $line;
+        }
         return $out;
     }
 

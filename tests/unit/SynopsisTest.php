@@ -33,7 +33,8 @@ class SynopsisTest extends TestCase
          * : Skip confirmation.
          *
          * [--no-redirect]
-         * : Don't leave a redirect.
+         * : Don't leave a
+         * redirect.
          *
          * @param string[] $args
          * --ignored
