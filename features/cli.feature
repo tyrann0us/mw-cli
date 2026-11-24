@@ -104,10 +104,10 @@ Feature: Run mw, get help and use global flags
 
   @ssh
   Scenario: A RemoteCommand in the SSH config doesn't stop mw
-    When I run "mw --ssh=root@remotecmd cli version"
+    When I run "mw --ssh=root@remotecmd/var/www/html site info --field=name"
     Then STDOUT should be:
       """
-      mw 0.1.0
+      Test Wiki
       """
 
   @ssh
