@@ -15,7 +15,7 @@ RUN apt-get update \
 	&& mkdir -p /run/sshd /root/.ssh \
 	&& ssh-keygen -q -t ed25519 -N '' -f /root/.ssh/id_ed25519 \
 	&& cp /root/.ssh/id_ed25519.pub /root/.ssh/authorized_keys \
-	&& printf 'Host *\n  StrictHostKeyChecking no\n  UserKnownHostsFile /dev/null\n  LogLevel ERROR\n' > /root/.ssh/config \
+	&& printf 'Host remotecmd\n  HostName localhost\n  RemoteCommand echo RemoteCommand ran\nHost *\n  StrictHostKeyChecking no\n  UserKnownHostsFile /dev/null\n  LogLevel ERROR\n' > /root/.ssh/config \
 	&& ln -s /mw-cli/bin/mw /usr/local/bin/mw
 
 ENV COMPOSER_ALLOW_SUPERUSER=1

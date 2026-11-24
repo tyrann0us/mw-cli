@@ -122,7 +122,8 @@ class Runner {
 		}
 
 		$remote = implode( ' ', array_map( 'escapeshellarg', [ 'mw', ...$forward ] ) );
-		// RemoteCommand in ~/.ssh/config would make ssh refuse the command we pass.
+		// A RemoteCommand in ~/.ssh/config would make ssh refuse the command we pass, so it is
+		// skipped, also one set on purpose (e.g. sudo to the web user).
 		return 'ssh ' . ( stream_isatty( STDOUT ) ? '-t' : '-T' ) . ' -o RemoteCommand=none'
 			. ( ( $m[3] ?? '' ) !== '' ? " -p $m[3]" : '' )
 			. ' -- ' . escapeshellarg( $target ) . ' ' . escapeshellarg( $remote );
