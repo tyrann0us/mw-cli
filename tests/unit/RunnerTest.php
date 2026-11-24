@@ -78,7 +78,7 @@ class RunnerTest extends TestCase {
 	public function testSshCommandForwardsArgsAndPath(): void {
 		$cli = new Runner( [ 'page', 'get', "It's", '--ssh=deploy@wiki.example.org:2222/var/www/w' ], $this->dir, null );
 		$this->assertSame(
-			"ssh -T -o RemoteCommand=none -p 2222 -- 'deploy@wiki.example.org' "
+			"ssh -T -o RemoteCommand=none -o LogLevel=ERROR -p 2222 -- 'deploy@wiki.example.org' "
 				. escapeshellarg( "'mw' '--path=/var/www/w' 'page' 'get' 'It'\\''s'" ),
 			self::ssh( $cli )
 		);
@@ -88,7 +88,7 @@ class RunnerTest extends TestCase {
 		file_put_contents( "$this->dir/project/mw.ini", "path = w\n[@prod]\nssh = wiki.example.org\npath = /srv/w\nuser = Bot\n" );
 		$cli = new Runner( [ '@prod', 'cli', 'version' ], "$this->dir/project/sub", null );
 		$this->assertSame(
-			"ssh -T -o RemoteCommand=none -- 'wiki.example.org' " . escapeshellarg( "'mw' '--user=Bot' '--path=/srv/w' 'cli' 'version'" ),
+			"ssh -T -o RemoteCommand=none -o LogLevel=ERROR -- 'wiki.example.org' " . escapeshellarg( "'mw' '--user=Bot' '--path=/srv/w' 'cli' 'version'" ),
 			self::ssh( $cli )
 		);
 	}

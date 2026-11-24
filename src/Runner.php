@@ -124,7 +124,8 @@ class Runner {
 		$remote = implode( ' ', array_map( 'escapeshellarg', [ 'mw', ...$forward ] ) );
 		// A RemoteCommand in ~/.ssh/config would make ssh refuse the command we pass. This also
 		// drops one set on purpose, such as sudo to the web user: mw then runs as the login user.
-		return 'ssh ' . ( stream_isatty( STDOUT ) ? '-t' : '-T' ) . ' -o RemoteCommand=none'
+		// LogLevel=ERROR hides "Connection to … closed." (logged at INFO) but keeps real errors.
+		return 'ssh ' . ( stream_isatty( STDOUT ) ? '-t' : '-T' ) . ' -o RemoteCommand=none -o LogLevel=ERROR'
 			. ( ( $m[3] ?? '' ) !== '' ? " -p $m[3]" : '' )
 			. ' -- ' . escapeshellarg( $target ) . ' ' . escapeshellarg( $remote );
 	}
