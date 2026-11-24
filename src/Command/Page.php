@@ -35,9 +35,9 @@ class Page extends Command
      *     mw page get 'Help:Contents' > contents.wiki
      *
      * @param string[] $args
-     * @param array<string,string|bool> $assoc_args
+     * @param array<string,string|bool> $assocArgs
      */
-    public function get(array $args, array $assoc_args): void
+    public function get(array $args, array $assocArgs): void
     {
         $title = $this->title($args[0]);
         $revision = $this->services()->getRevisionLookup()->getRevisionByTitle($title);
@@ -74,22 +74,21 @@ class Page extends Command
      *     echo 'Hello' | mw --user=Admin page put Sandbox --minor
      *
      * @param string[] $args
-     * @param array<string,string|bool> $assoc_args
+     * @param array<string,string|bool> $assocArgs
      */
-    public function put(array $args, array $assoc_args): void
+    public function put(array $args, array $assocArgs): void
     {
         $title = $this->title($args[0]);
         $file = $args[1] ?? null;
-		// phpcs:ignore Generic.PHP.NoSilencedErrors.Discouraged -- Runner::error() reports it.
         $text = $file === null ? stream_get_contents(STDIN) : @file_get_contents($file);
         if ($text === false) {
             Runner::error("Can't read '$file'.");
         }
         $page = $this->services()->getWikiPageFactory()->newFromTitle($title);
-        if (!empty($assoc_args['create-only']) && $page->exists()) {
+        if (!empty($assocArgs['create-only']) && $page->exists()) {
             Runner::error("Page '{$title->getPrefixedText()}' already exists.");
         }
-        if (($assoc_args['create'] ?? true) === false && !$page->exists()) {
+        if (($assocArgs['create'] ?? true) === false && !$page->exists()) {
             $this->missing($title);
         }
         $content = $this->services()->getContentHandlerFactory()
@@ -99,11 +98,11 @@ class Page extends Command
         $updater = $this->services()->getPageUpdaterFactory()->newPageUpdater($page, $this->performer());
         $updater->setContent(SlotRecord::MAIN, $content);
         $revision = $updater->saveRevision(
-            CommentStoreComment::newUnsavedComment((string) ($assoc_args['summary'] ?? '')),
+            CommentStoreComment::newUnsavedComment((string) ($assocArgs['summary'] ?? '')),
             EDIT_AUTOSUMMARY
-                | (!empty($assoc_args['minor']) ? EDIT_MINOR : 0)
-                | (!empty($assoc_args['create-only']) ? EDIT_NEW : 0)
-                | (($assoc_args['create'] ?? true) === false ? EDIT_UPDATE : 0)
+                | (!empty($assocArgs['minor']) ? EDIT_MINOR : 0)
+                | (!empty($assocArgs['create-only']) ? EDIT_NEW : 0)
+                | (($assocArgs['create'] ?? true) === false ? EDIT_UPDATE : 0)
         );
         $this->check($updater->getStatus());
         if ($revision === null) {
@@ -128,7 +127,8 @@ class Page extends Command
      * : Only titles that start with this, without the namespace.
      *
      * [--category=<category>]
-     * : Only pages in this category, e.g. Fruit or Category:Fruit. The prefix can be in the wiki's language.
+     * : Only pages in this category, e.g. Fruit or Category:Fruit. The prefix can be in the
+     * wiki's language.
      *
      * [--limit=<n>]
      * : List at most this many pages.
@@ -150,31 +150,33 @@ class Page extends Command
      *     mw page list --limit=10
      *
      * @param string[] $args
-     * @param array<string,string|bool> $assoc_args
+     * @param array<string,string|bool> $assocArgs
      */
-    public function list(array $args, array $assoc_args): void
+    public function list(array $args, array $assocArgs): void
     {
         $db = $this->services()->getConnectionProvider()->getReplicaDatabase();
         $query = $this->services()->getPageStore()->newSelectQueryBuilder($db)
             ->orderBy(['page_namespace', 'page_title'])
             ->caller(__METHOD__);
-        $limit = $this->limit($assoc_args);
+        $limit = $this->limit($assocArgs);
         if ($limit !== null) {
             $query->limit($limit);
         }
-        $namespace = isset($assoc_args['namespace']) ? $this->namespace((string) $assoc_args['namespace']) : null;
+        $namespace = isset($assocArgs['namespace'])
+            ? $this->namespace((string) $assocArgs['namespace'])
+            : null;
         if ($namespace !== null) {
             $query->whereNamespace($namespace);
         }
-        if (isset($assoc_args['prefix'])) {
-            $prefix = (string) $assoc_args['prefix'];
+        if (isset($assocArgs['prefix'])) {
+            $prefix = (string) $assocArgs['prefix'];
             $query->where($this->titlePrefix($db, 'page_title', $prefix, $namespace ?? NS_MAIN));
         }
-        if (isset($assoc_args['category'])) {
+        if (isset($assocArgs['category'])) {
             // getMembers() hides the categorylinks schema change after 1.43. It only collects the IDs,
             // so the query above still sorts, filters and limits in the database.
             $ids = [];
-            $category = Category::newFromTitle($this->category((string) $assoc_args['category']));
+            $category = Category::newFromTitle($this->category((string) $assocArgs['category']));
             foreach ($category->getMembers() as $member) {
                 $ids[] = $member->getArticleID();
             }
@@ -192,7 +194,7 @@ class Page extends Command
                 'redirect' => $page->isRedirect(),
             ];
         }
-        Formatter::items($rows, $assoc_args, ['id', 'title']);
+        Formatter::items($rows, $assocArgs, ['id', 'title']);
     }
 
     /**
@@ -223,11 +225,11 @@ class Page extends Command
      *     mw page category list Apple --field=category
      *
      * @param string[] $args
-     * @param array<string,string|bool> $assoc_args
+     * @param array<string,string|bool> $assocArgs
      */
-    public function categoryList(array $args, array $assoc_args): void
+    public function categoryList(array $args, array $assocArgs): void
     {
-        $limit = $this->limit($assoc_args);
+        $limit = $this->limit($assocArgs);
         $title = $this->title($args[0]);
         if (!$title->exists()) {
             $this->missing($title);
@@ -242,7 +244,7 @@ class Page extends Command
         foreach (array_slice($categories, 0, $limit) as $category) {
             $rows[] = ['title' => $title->getPrefixedText(), 'category' => $category];
         }
-        Formatter::items($rows, $assoc_args, ['title', 'category']);
+        Formatter::items($rows, $assocArgs, ['title', 'category']);
     }
 
     /**
@@ -264,20 +266,20 @@ class Page extends Command
      *     mw page delete Sandbox 'Old page' --reason=Cleanup --yes
      *
      * @param string[] $args
-     * @param array<string,string|bool> $assoc_args
+     * @param array<string,string|bool> $assocArgs
      */
-    public function delete(array $args, array $assoc_args): void
+    public function delete(array $args, array $assocArgs): void
     {
         $titles = $this->existing($args);
         $question = count($titles) === 1
             ? "Delete '{$titles[0]->getPrefixedText()}'?"
             : 'Delete ' . count($titles) . ' pages?';
-        Runner::confirm($question, $assoc_args);
+        Runner::confirm($question, $assocArgs);
         $performer = $this->performer();
         $factory = $this->services()->getDeletePageFactory();
         foreach ($titles as $title) {
             $delete = $factory->newDeletePage($title->toPageIdentity(), $performer);
-            $this->check($delete->deleteUnsafe((string) ($assoc_args['reason'] ?? '')));
+            $this->check($delete->deleteUnsafe((string) ($assocArgs['reason'] ?? '')));
             Runner::success("Deleted '{$title->getPrefixedText()}'.");
         }
     }
@@ -306,9 +308,9 @@ class Page extends Command
      *     mw page move Sandbox 'Help:Sandbox' --reason='Belongs in Help' --no-redirect
      *
      * @param string[] $args
-     * @param array<string,string|bool> $assoc_args
+     * @param array<string,string|bool> $assocArgs
      */
-    public function move(array $args, array $assoc_args): void
+    public function move(array $args, array $assocArgs): void
     {
         $from = $this->title($args[0]);
         $to = $this->title($args[1]);
@@ -316,8 +318,8 @@ class Page extends Command
         $this->check($move->isValidMove());
         $this->check($move->move(
             $this->performer(),
-            (string) ($assoc_args['reason'] ?? ''),
-            ($assoc_args['redirect'] ?? true) !== false
+            (string) ($assocArgs['reason'] ?? ''),
+            ($assocArgs['redirect'] ?? true) !== false
         ));
         Runner::success("Moved '{$from->getPrefixedText()}' to '{$to->getPrefixedText()}'.");
     }
@@ -352,53 +354,69 @@ class Page extends Command
      *     mw page protect Sandbox --edit=all
      *
      * @param string[] $args
-     * @param array<string,string|bool> $assoc_args
+     * @param array<string,string|bool> $assocArgs
      */
-    public function protect(array $args, array $assoc_args): void
+    public function protect(array $args, array $assocArgs): void
     {
         $title = $this->existing([$args[0]])[0];
-        if (!isset($assoc_args['edit']) && !isset($assoc_args['move'])) {
+        if (!isset($assocArgs['edit']) && !isset($assocArgs['move'])) {
             Runner::error('Pass --edit or --move.');
         }
-        $levels = array_diff($this->services()->getMainConfig()->get(MainConfigNames::RestrictionLevels), ['']);
-        $input = (string) ($assoc_args['expiry'] ?? 'infinity');
+        $input = (string) ($assocArgs['expiry'] ?? 'infinity');
         $expiry = in_array($input, ExpiryDef::INFINITY_VALS, true) ? 'infinity' : strtotime($input);
         if ($expiry === false || ($expiry !== 'infinity' && $expiry <= time())) {
-            Runner::error("Invalid expiry '$input'. Use a future time like '1 week' or 'infinite'.");
+            Runner::error(
+                "Invalid expiry '$input'. Use a future time like '1 week' or 'infinite'."
+            );
         }
 
-        $store = $this->services()->getRestrictionStore();
-        $limit = [];
-        $expiries = [];
-        // doUpdateRestrictions() replaces all of them, so pass on the ones we don't change.
-        foreach ($store->listApplicableRestrictionTypes($title) as $action) {
-            $level = $assoc_args[$action] ?? null;
-            if ($level === null) {
-                $limit[$action] = implode(',', $store->getRestrictions($title, $action));
-                $expiries[$action] = $store->getRestrictionExpiry($title, $action);
-            } elseif ($level === 'all' || in_array($level, $levels, true)) {
-                $limit[$action] = $level === 'all' ? '' : $level;
-                $expiries[$action] = $expiry;
-            } else {
-                Runner::error("Invalid --$action level '$level'. Use all, " . implode(', ', $levels) . '.');
-            }
-        }
-
-        $cascade = $store->areRestrictionsCascading($title);
+        [$limit, $expiries] = $this->restrictions($title, $assocArgs, $expiry);
+        $cascade = $this->services()->getRestrictionStore()->areRestrictionsCascading($title);
         $page = $this->services()->getWikiPageFactory()->newFromTitle($title);
         $this->check($page->doUpdateRestrictions(
             $limit,
             $expiries,
             $cascade,
-            (string) ($assoc_args['reason'] ?? ''),
+            (string) ($assocArgs['reason'] ?? ''),
             $this->performer()
         ));
         $now = array_map(
-            static fn ($action, $level) => "$action=" . ($level ?: 'all'),
+            static fn (string $action, string $level): string => "$action=" . ($level ?: 'all'),
             array_keys($limit),
             $limit
         );
         Runner::success("Protected '{$title->getPrefixedText()}': " . implode(', ', $now) . '.');
+    }
+
+    /**
+     * The levels and expiries for doUpdateRestrictions(). It replaces all restrictions, so the
+     * ones without an option are passed on unchanged.
+     *
+     * @param array<string,string|bool> $assocArgs
+     * @return array{0: array<string,string>, 1: array<string,string|int|null>}
+     */
+    private function restrictions(Title $title, array $assocArgs, string|int $expiry): array
+    {
+        $config = $this->services()->getMainConfig();
+        $levels = array_diff($config->get(MainConfigNames::RestrictionLevels), ['']);
+        $store = $this->services()->getRestrictionStore();
+        $limit = [];
+        $expiries = [];
+        foreach ($store->listApplicableRestrictionTypes($title) as $action) {
+            $level = $assocArgs[$action] ?? null;
+            if ($level === null) {
+                $limit[$action] = implode(',', $store->getRestrictions($title, $action));
+                $expiries[$action] = $store->getRestrictionExpiry($title, $action);
+                continue;
+            }
+            if (!is_string($level) || ($level !== 'all' && !in_array($level, $levels, true))) {
+                $allowed = implode(', ', $levels);
+                Runner::error("Invalid --$action level '$level'. Use all, $allowed.");
+            }
+            $limit[$action] = $level === 'all' ? '' : $level;
+            $expiries[$action] = $expiry;
+        }
+        return [$limit, $expiries];
     }
 
     /**
@@ -414,14 +432,15 @@ class Page extends Command
      *     mw page purge Main_Page 'Help:Contents'
      *
      * @param string[] $args
-     * @param array<string,string|bool> $assoc_args
+     * @param array<string,string|bool> $assocArgs
      */
-    public function purge(array $args, array $assoc_args): void
+    public function purge(array $args, array $assocArgs): void
     {
         foreach ($this->existing($args) as $title) {
             $name = $title->getPrefixedText();
             $purged = $this->services()->getWikiPageFactory()->newFromTitle($title)->doPurge();
-            $purged ? Runner::success("Purged '$name'.") : Runner::warning("A hook stopped purging '$name'.");
+            $stopped = "A hook stopped purging '$name'.";
+            $purged ? Runner::success("Purged '$name'.") : Runner::warning($stopped);
         }
     }
 
@@ -435,7 +454,8 @@ class Page extends Command
     }
 
     /**
-     * Titles for these names, duplicates removed. Fails before anything changes if a page doesn't exist.
+     * Titles for these names, duplicates removed. Fails before anything changes if a page
+     * doesn't exist.
      *
      * @param string[] $names
      * @return list<Title>
@@ -447,7 +467,7 @@ class Page extends Command
             $title = $this->title($name);
             $titles[$title->getPrefixedText()] = $title;
         }
-        $missing = array_keys(array_filter($titles, static fn ($title) => !$title->exists()));
+        $missing = array_keys(array_filter($titles, static fn (Title $title): bool => !$title->exists()));
         if ($missing) {
             Runner::error("Page not found: '" . implode("', '", $missing) . "'.");
         }

@@ -38,7 +38,10 @@ class ConfigTest extends TestCase
 
     public function testRelativeAliasPathIsRelativeToFileUnlessSsh(): void
     {
-        file_put_contents("$this->dir/project/mw.ini", "[@a]\npath = w2\n[@b]\nssh = host\npath = w3\n");
+        file_put_contents(
+            "$this->dir/project/mw.ini",
+            "[@a]\npath = w2\n[@b]\nssh = host\npath = w3\n"
+        );
         [$config] = Config::load("$this->dir/project/sub", null);
         $this->assertSame("$this->dir/project/w2", Config::resolve($config, '@a', [])['path']);
         $this->assertSame('w3', Config::resolve($config, '@b', [])['remote-path']);
@@ -64,12 +67,18 @@ class ConfigTest extends TestCase
     public function testLocalAliasOverridesConfigAndFlagsOverrideAlias(): void
     {
         $config = ['path' => '/a', 'user' => 'A', '@local' => ['path' => '/b', 'user' => 'B']];
-        $this->assertSame(['path' => '/b', 'user' => 'C'], Config::resolve($config, '@local', ['user' => 'C']));
+        $this->assertSame(
+            ['path' => '/b', 'user' => 'C'],
+            Config::resolve($config, '@local', ['user' => 'C'])
+        );
     }
 
     public function testSshAliasKeepsPathAndUserForTheRemoteHost(): void
     {
-        $config = ['path' => '/local', '@prod' => ['ssh' => 'host', 'path' => '/srv', 'user' => 'Bot']];
+        $config = [
+            'path' => '/local',
+            '@prod' => ['ssh' => 'host', 'path' => '/srv', 'user' => 'Bot'],
+        ];
         $this->assertSame(
             ['path' => '/local', 'remote-path' => '/srv', 'remote-user' => 'Bot', 'ssh' => 'host'],
             Config::resolve($config, '@prod', [])

@@ -31,16 +31,19 @@ class Help extends Command
      *     mw help page category list
      *
      * @param string[] $args
-     * @param array<string,string|bool> $assoc_args
+     * @param array<string,string|bool> $assocArgs
      */
-    public function __invoke(array $args, array $assoc_args): void
+    public function __invoke(array $args, array $assocArgs): void
     {
         if (!$args) {
-            Runner::line("usage: mw [@<alias>] [--path=<path>] [--ssh=<host>] [--user=<user>] [--quiet] <command>\n");
+            Runner::line(
+                'usage: mw [@<alias>] [--path=<path>] [--ssh=<host>] [--user=<user>] [--quiet] '
+                . "<command>\n"
+            );
             Runner::line('Commands:');
             $this->list(array_map(
-                fn ($class) => self::summary(new ReflectionClass($class)),
-                $this->cli->commands
+                static fn (string $class): string => self::summary(new ReflectionClass($class)),
+                $this->cli->commands()
             ));
             Runner::line("\nSee 'mw help <command>' for more information on a specific command.");
             return;
@@ -57,17 +60,19 @@ class Help extends Command
             Runner::line("usage: mw $name <subcommand>\n");
             Runner::line('Subcommands:');
             $subs = [];
-            foreach (Runner::subcommands($class) as $m) {
-                $sub = Runner::subcommandName($m);
+            foreach (Runner::subcommands($class) as $subMethod) {
+                $sub = Runner::subcommandName($subMethod);
                 if (str_starts_with($sub, $prefix)) {
-                    $subs[substr($sub, strlen($prefix))] = self::summary(new ReflectionMethod($class, $m));
+                    $summary = self::summary(new ReflectionMethod($class, $subMethod));
+                    $subs[substr($sub, strlen($prefix))] = $summary;
                 }
             }
             $this->list($subs);
             return;
         }
 
-        $text = Synopsis::parse((new ReflectionMethod($class, $method))->getDocComment() ?: '')['text'];
+        $doc = (new ReflectionMethod($class, $method))->getDocComment() ?: '';
+        $text = Synopsis::parse($doc)['text'];
         [$summary, $body] = array_pad(explode("\n", $text, 2), 2, '');
         Runner::line("NAME\n\n  " . $this->cli->usage($class, $method) . "\n");
         Runner::line("DESCRIPTION\n\n  $summary\n");
@@ -86,10 +91,10 @@ class Help extends Command
     }
 
     /**
-     * @param ReflectionClass<object>|ReflectionMethod $r
+     * @param ReflectionClass<object>|ReflectionMethod $reflection
      */
-    private static function summary(ReflectionClass|ReflectionMethod $r): string
+    private static function summary(ReflectionClass|ReflectionMethod $reflection): string
     {
-        return Synopsis::parse($r->getDocComment() ?: '')['summary'];
+        return Synopsis::parse($reflection->getDocComment() ?: '')['summary'];
     }
 }

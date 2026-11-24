@@ -45,9 +45,9 @@ class Category extends Command
      *     mw category list --limit=10 --format=csv
      *
      * @param string[] $args
-     * @param array<string,string|bool> $assoc_args
+     * @param array<string,string|bool> $assocArgs
      */
-    public function list(array $args, array $assoc_args): void
+    public function list(array $args, array $assocArgs): void
     {
         $db = $this->services()->getConnectionProvider()->getReplicaDatabase();
         $query = $db->newSelectQueryBuilder()
@@ -56,12 +56,13 @@ class Category extends Command
             ->where('cat_pages > 0')
             ->orderBy('cat_title')
             ->caller(__METHOD__);
-        $limit = $this->limit($assoc_args);
+        $limit = $this->limit($assocArgs);
         if ($limit !== null) {
             $query->limit($limit);
         }
-        if (isset($assoc_args['prefix'])) {
-            $query->andWhere($this->titlePrefix($db, 'cat_title', (string) $assoc_args['prefix'], NS_CATEGORY));
+        if (isset($assocArgs['prefix'])) {
+            $prefix = (string) $assocArgs['prefix'];
+            $query->andWhere($this->titlePrefix($db, 'cat_title', $prefix, NS_CATEGORY));
         }
 
         $formatter = $this->services()->getTitleFormatter();
@@ -81,6 +82,6 @@ class Category extends Command
                 'files' => $files,
             ];
         }
-        Formatter::items($rows, $assoc_args, ['title', 'pages', 'subcats', 'files']);
+        Formatter::items($rows, $assocArgs, ['title', 'pages', 'subcats', 'files']);
     }
 }

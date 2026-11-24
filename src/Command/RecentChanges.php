@@ -12,6 +12,7 @@ use MwCli\Command;
 use MwCli\Formatter;
 use MwCli\Runner;
 use stdClass;
+use Wikimedia\Rdbms\SelectQueryBuilder;
 
 /**
  * Lists recent changes.
@@ -55,9 +56,9 @@ class RecentChanges extends Command
      *     mw recent-changes --by=Admin --type=new --field=title
      *
      * @param string[] $args
-     * @param array<string,string|bool> $assoc_args
+     * @param array<string,string|bool> $assocArgs
      */
-    public function __invoke(array $args, array $assoc_args): void
+    public function __invoke(array $args, array $assocArgs): void
     {
         $dbr = $this->services()->getConnectionProvider()->getReplicaDatabase();
         $query = $dbr->newSelectQueryBuilder()
@@ -69,60 +70,86 @@ class RecentChanges extends Command
             ->join('actor', null, 'actor_id = rc_actor')
             ->join('comment', null, 'comment_id = rc_comment_id')
             ->orderBy(['rc_timestamp', 'rc_id'], 'DESC')
-            ->limit($this->limit($assoc_args) ?? 50)
+            ->limit($this->limit($assocArgs) ?? 50)
             ->caller(__METHOD__);
-        if (isset($assoc_args['namespace'])) {
+        $this->filter($query, $assocArgs);
+
+        $rows = [];
+        foreach ($query->fetchResultSet() as $row) {
+            /** @var stdClass $row */
+            $rows[] = $this->row($row);
+        }
+        $defaultFields = ['id', 'timestamp', 'type', 'title', 'user', 'comment'];
+        Formatter::items($rows, $assocArgs, $defaultFields);
+    }
+
+    /**
+     * Adds the conditions for --namespace, --by and --type.
+     *
+     * @param array<string,string|bool> $assocArgs
+     */
+    private function filter(SelectQueryBuilder $query, array $assocArgs): void
+    {
+        $dbr = $this->services()->getConnectionProvider()->getReplicaDatabase();
+        if (isset($assocArgs['namespace'])) {
             // Skip log entries with a hidden target, or the filter would reveal their namespace.
+            $actionShown = $dbr->bitAnd('rc_deleted', self::DELETED_ACTION) . ' = 0';
             $query->andWhere([
-                'rc_namespace' => $this->namespace((string) $assoc_args['namespace']),
-                'rc_log_type IS NULL OR ' . $dbr->bitAnd('rc_deleted', self::DELETED_ACTION) . ' = 0',
+                'rc_namespace' => $this->namespace((string) $assocArgs['namespace']),
+                "rc_log_type IS NULL OR $actionShown",
             ]);
         }
-        if (isset($assoc_args['by'])) {
-            $by = (string) $assoc_args['by'];
+        if (isset($assocArgs['by'])) {
+            $by = (string) $assocArgs['by'];
             if ($by === '') {
                 Runner::error('--by needs a value.');
             }
-            $name = $this->services()->getUserNameUtils()->getCanonical($by, UserNameUtils::RIGOR_NONE) ?: $by;
+            $name = $this->services()->getUserNameUtils()
+                ->getCanonical($by, UserNameUtils::RIGOR_NONE) ?: $by;
             // Like MediaWiki's own lists, don't reveal who made changes whose user is hidden.
             $query->andWhere([
                 'actor_name' => $name,
                 $dbr->bitAnd('rc_deleted', RevisionRecord::DELETED_USER) . ' = 0',
             ]);
         }
-        if (isset($assoc_args['type'])) {
-            if (!in_array($assoc_args['type'], self::TYPES, true)) {
+        if (isset($assocArgs['type'])) {
+            if (!in_array($assocArgs['type'], self::TYPES, true)) {
                 Runner::error('Invalid type. Use one of: ' . implode(', ', self::TYPES) . '.');
             }
-            $query->andWhere(['rc_source' => 'mw.' . $assoc_args['type']]);
+            $query->andWhere(['rc_source' => 'mw.' . $assocArgs['type']]);
         }
+    }
 
-        $formatter = $this->services()->getTitleFormatter();
+    /**
+     * @return array<string,mixed>
+     */
+    private function row(stdClass $row): array
+    {
         $utc = new DateTimeZone('UTC');
-        $rows = [];
-        foreach ($query->fetchResultSet() as $row) {
-            /** @var stdClass $row */
-            $hidden = (int) $row->rc_deleted;
-            $hideAction = $row->rc_log_type !== null && $hidden & self::DELETED_ACTION;
-            $rows[] = [
-                'id' => (int) $row->rc_id,
-                // PHP reads YmdHis (MySQL, SQLite) and PostgreSQL timestamps, which may carry an offset.
-                'timestamp' => (new DateTimeImmutable($row->rc_timestamp, $utc))
-                    ->setTimezone($utc)->format('Y-m-d\TH:i:s\Z'),
-                // mw.edit, mw.new, mw.log, mw.categorize, or an extension's own source.
-                'type' => preg_replace('/^mw\./', '', $row->rc_source),
-                // Hidden by revision deletion or suppression.
-                'title' => $hideAction ? null : $formatter->formatTitle((int) $row->rc_namespace, $row->rc_title),
-                'namespace' => $hideAction ? null : (int) $row->rc_namespace,
-                'user' => $hidden & RevisionRecord::DELETED_USER ? null : $row->actor_name,
-                'comment' => $hidden & RevisionRecord::DELETED_COMMENT ? null : $row->comment_text,
-                // A log entry's null revision would point back to its hidden target.
-                'revision' => $hideAction ? null : ((int) $row->rc_this_oldid ?: null),
-                'action' => $row->rc_log_type === null || $hideAction
-                    ? null
-                    : $row->rc_log_type . '/' . $row->rc_log_action,
-            ];
-        }
-        Formatter::items($rows, $assoc_args, ['id', 'timestamp', 'type', 'title', 'user', 'comment']);
+        $hidden = (int) $row->rc_deleted;
+        $hideAction = $row->rc_log_type !== null && $hidden & self::DELETED_ACTION;
+        $title = $hideAction
+            ? null
+            : $this->services()->getTitleFormatter()
+                ->formatTitle((int) $row->rc_namespace, $row->rc_title);
+        return [
+            'id' => (int) $row->rc_id,
+            // PHP reads YmdHis (MySQL, SQLite) and PostgreSQL timestamps, which may carry an
+            // offset.
+            'timestamp' => (new DateTimeImmutable($row->rc_timestamp, $utc))
+                ->setTimezone($utc)->format('Y-m-d\TH:i:s\Z'),
+            // mw.edit, mw.new, mw.log, mw.categorize, or an extension's own source.
+            'type' => preg_replace('/^mw\./', '', $row->rc_source),
+            // Hidden by revision deletion or suppression.
+            'title' => $title,
+            'namespace' => $hideAction ? null : (int) $row->rc_namespace,
+            'user' => $hidden & RevisionRecord::DELETED_USER ? null : $row->actor_name,
+            'comment' => $hidden & RevisionRecord::DELETED_COMMENT ? null : $row->comment_text,
+            // A log entry's null revision would point back to its hidden target.
+            'revision' => $hideAction ? null : ((int) $row->rc_this_oldid ?: null),
+            'action' => $row->rc_log_type === null || $hideAction
+                ? null
+                : $row->rc_log_type . '/' . $row->rc_log_action,
+        ];
     }
 }

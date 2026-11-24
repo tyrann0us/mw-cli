@@ -63,7 +63,8 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "MwCli\\Tests\\": "tests/unit/"
+            "MwCli\\Tests\\": "tests/unit/",
+            "MwCli\\Tests\\Behat\\": "features/bootstrap/"
         }
     },
     "scripts": {

@@ -27,14 +27,21 @@ class FormatterTest extends TestCase
                 [ 'format' => 'json' ],
                 '[{"id":1,"title":"Main Page"},{"id":2,"title":"Foo, \"bar\""}]' . "\n",
             ],
-            'csv' => [ [ 'format' => 'csv' ], "id,title\n1,\"Main Page\"\n2,\"Foo, \"\"bar\"\"\"\n" ],
+            'csv' => [
+                [ 'format' => 'csv' ],
+                "id,title\n1,\"Main Page\"\n2,\"Foo, \"\"bar\"\"\"\n",
+            ],
             'yaml' => [
                 [ 'format' => 'yaml' ],
-                "---\n-\n  id: 1\n  title: \"Main Page\"\n-\n  id: 2\n  title: \"Foo, \\\"bar\\\"\"\n",
+                "---\n-\n  id: 1\n  title: \"Main Page\"\n"
+                    . "-\n  id: 2\n  title: \"Foo, \\\"bar\\\"\"\n",
             ],
             'ids' => [ [ 'format' => 'ids' ], "1 2\n" ],
             'count' => [ [ 'format' => 'count' ], "2\n" ],
-            'fields' => [ [ 'fields' => 'title,ns' ], "title\tns\nMain Page\t0\nFoo, \"bar\"\t4\n" ],
+            'fields' => [
+                [ 'fields' => 'title,ns' ],
+                "title\tns\nMain Page\t0\nFoo, \"bar\"\t4\n",
+            ],
             'field' => [ [ 'field' => 'ns' ], "0\n4\n" ],
         ];
     }

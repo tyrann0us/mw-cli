@@ -39,9 +39,9 @@ class Maint extends Command
      *     mw maint importDump -- --path=dump.xml
      *
      * @param string[] $args
-     * @param array<string,string|bool> $assoc_args
+     * @param array<string,string|bool> $assocArgs
      */
-    public function __invoke(array $args, array $assoc_args): void
+    public function __invoke(array $args, array $assocArgs): void
     {
         // Raw tokens, so repeated options and their order reach the script unchanged.
         $cmd = array_map('escapeshellarg', [

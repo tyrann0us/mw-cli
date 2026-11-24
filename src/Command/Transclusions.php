@@ -42,10 +42,10 @@ class Transclusions extends Backlinks
      *     mw transclusions Template:Stub --format=count
      *
      * @param string[] $args
-     * @param array<string,string|bool> $assoc_args
+     * @param array<string,string|bool> $assocArgs
      */
-    public function __invoke(array $args, array $assoc_args): void
+    public function __invoke(array $args, array $assocArgs): void
     {
-        parent::__invoke($args, $assoc_args);
+        parent::__invoke($args, $assocArgs);
     }
 }

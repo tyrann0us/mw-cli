@@ -33,9 +33,9 @@ class Site extends Command
      *     mw @prod site info --field=version
      *
      * @param string[] $args
-     * @param array<string,string|bool> $assoc_args
+     * @param array<string,string|bool> $assocArgs
      */
-    public function info(array $args, array $assoc_args): void
+    public function info(array $args, array $assocArgs): void
     {
         $config = $this->services()->getMainConfig();
         Formatter::item([
@@ -45,6 +45,6 @@ class Site extends Command
             'path' => $this->cli->wikiPath(),
             'database' => $config->get(MainConfigNames::DBtype),
             'language' => $config->get(MainConfigNames::LanguageCode),
-        ], $assoc_args);
+        ], $assocArgs);
     }
 }

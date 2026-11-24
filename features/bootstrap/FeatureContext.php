@@ -2,8 +2,11 @@
 
 declare(strict_types=1);
 
+namespace MwCli\Tests\Behat;
+
 use Behat\Behat\Context\Context;
 use Behat\Gherkin\Node\PyStringNode;
+use RuntimeException;
 
 /**
  * Commands run inside the test wiki container (docker-compose.yml),
@@ -23,7 +26,8 @@ class FeatureContext implements Context
         $this->exec('reset-wiki');
         if ($this->code !== 0) {
             throw new RuntimeException(
-                "Could not reset the test wiki. Is it running (docker compose up -d)?\n$this->stderr"
+                'Could not reset the test wiki. Is it running (docker compose up -d)?'
+                    . "\n$this->stderr"
             );
         }
     }
@@ -56,7 +60,8 @@ class FeatureContext implements Context
         $this->exec($command);
         if ($this->code !== 0) {
             throw new RuntimeException(
-                "'$command' failed with code $this->code.\nSTDOUT:\n$this->stdout\nSTDERR:\n$this->stderr"
+                "'$command' failed with code $this->code.\n"
+                    . "STDOUT:\n$this->stdout\nSTDERR:\n$this->stderr"
             );
         }
     }
@@ -82,11 +87,13 @@ class FeatureContext implements Context
      */
     public function stdoutShouldBeLike(PyStringNode $expected): void
     {
-        // Like "should be", but {id} stands for any ID (a positive number), e.g. one the install assigns.
+        // Like "should be", but {id} stands for any ID (a positive number), e.g. one the
+        // install assigns.
         $pattern = str_replace('\{id\}', '[1-9][0-9]*', preg_quote($expected->getRaw(), '#'));
         if (!preg_match("#^$pattern$#", rtrim($this->stdout, "\n"))) {
             throw new RuntimeException(
-                "STDOUT is:\n$this->stdout\nExpected ({id} is any ID):\n{$expected->getRaw()}\n\nSTDERR:\n$this->stderr"
+                "STDOUT is:\n$this->stdout\nExpected ({id} is any ID):\n{$expected->getRaw()}\n\n"
+                    . "STDERR:\n$this->stderr"
             );
         }
     }
@@ -119,7 +126,8 @@ class FeatureContext implements Context
     {
         $prefix = getenv('MW_CLI_EXEC') ?: 'docker compose exec -T -w /var/www/html wiki';
         // stderr goes to a file: reading two pipes one after the other can deadlock.
-        $stderr = tempnam(sys_get_temp_dir(), 'mw-cli-stderr');
+        $stderr = (string) tempnam(sys_get_temp_dir(), 'mw-cli-stderr');
+        $pipes = [];
         $proc = proc_open(
             "$prefix sh -c " . escapeshellarg($command),
             [['pipe', 'r'], ['pipe', 'w'], ['file', $stderr, 'w']],
@@ -128,16 +136,18 @@ class FeatureContext implements Context
         );
         fwrite($pipes[0], $stdin ?? '');
         fclose($pipes[0]);
-        $this->stdout = stream_get_contents($pipes[1]);
+        $this->stdout = (string) stream_get_contents($pipes[1]);
         $this->code = proc_close($proc);
-        $this->stderr = file_get_contents($stderr);
+        $this->stderr = (string) file_get_contents($stderr);
         unlink($stderr);
     }
 
     private function assertSame(string $expected, string $actual, string $what): void
     {
         if ($expected !== $actual) {
-            throw new RuntimeException("$what is:\n$actual\n\nExpected:\n$expected\n\nSTDERR:\n$this->stderr");
+            throw new RuntimeException(
+                "$what is:\n$actual\n\nExpected:\n$expected\n\nSTDERR:\n$this->stderr"
+            );
         }
     }
 

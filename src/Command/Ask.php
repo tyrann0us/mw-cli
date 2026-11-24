@@ -30,8 +30,8 @@ class Ask extends Command
      * : The query, e.g. '[[Category:Building]]|?Street'.
      *
      * [--limit=<n>]
-     * : Maximum number of results, up to Semantic MediaWiki's maximum. Defaults to its default limit.
-     * A warning says when there are more.
+     * : Maximum number of results, up to Semantic MediaWiki's maximum. Defaults to its default
+     * limit. A warning says when there are more.
      *
      * [--format=<format>]
      * : table, json, csv, yaml, ids or count.
@@ -48,9 +48,9 @@ class Ask extends Command
      *     mw ask '[[Street::Main Street]]' --limit=10 --format=ids
      *
      * @param string[] $args
-     * @param array<string,string|bool> $assoc_args
+     * @param array<string,string|bool> $assocArgs
      */
-    public function __invoke(array $args, array $assoc_args): void
+    public function __invoke(array $args, array $assocArgs): void
     {
         // SMW\Query\QueryProcessor is new in SMW 7.
         if (
@@ -59,11 +59,14 @@ class Ask extends Command
         ) {
             Runner::error('mw ask needs Semantic MediaWiki 7 or later.');
         }
-        // Split on single | outside [[ ]]; || is OR, as in [[A::x||y]] or [[A::x]] || [[B::y]].
-        $params = array_map('trim', preg_split('/(?<!\|)\|(?!\|)(?![^\[\]]*\]\])/', $args[0]) ?: []);
-        // Output goes through --format. format=count or format=debug would change the query mode and limit.
+        // Split on single | outside [[ ]]. A double || is OR, as in [[A::x||y]] or
+        // [[A::x]] || [[B::y]].
+        $parts = preg_split('/(?<!\|)\|(?!\|)(?![^\[\]]*\]\])/', $args[0]) ?: [];
+        $params = array_map('trim', $parts);
+        // Output goes through --format. format=count or format=debug would change the query
+        // mode and limit.
         $params = preg_grep('/^format\s*=/i', $params, PREG_GREP_INVERT) ?: [];
-        $limit = $this->limit($assoc_args);
+        $limit = $this->limit($assocArgs);
         if ($limit !== null) {
             $params[] = "limit=$limit";
         }
@@ -81,7 +84,9 @@ class Ask extends Command
         }
         // One field per printout, so the columns are the same with no results.
         $fields = array_map(
-            static fn ($pr) => $pr->isMode(PrintRequest::PRINT_THIS) ? 'title' : $pr->getLabel(),
+            static fn (PrintRequest $printout): string => $printout->isMode(PrintRequest::PRINT_THIS)
+                ? 'title'
+                : $printout->getLabel(),
             $result->getPrintRequests()
         );
         $rows = [];
@@ -90,14 +95,16 @@ class Ask extends Command
             $row = [];
             foreach ($columns as $i => $column) {
                 $values = [];
-                for ($value = $column->getNextDataValue(); $value; $value = $column->getNextDataValue()) {
+                $value = $column->getNextDataValue();
+                while ($value) {
                     $values[] = $value->getWikiValue();
+                    $value = $column->getNextDataValue();
                 }
                 $row[$fields[$i]] = implode(', ', $values);
             }
             $rows[] = $row;
         }
-        Formatter::items($rows, $assoc_args, $fields);
+        Formatter::items($rows, $assocArgs, $fields);
         // The limit may come from --limit, limit= or offset= in the query, or SMW's maximum.
         if ($result->hasFurtherResults()) {
             Runner::warning('There are more results than shown.');

@@ -49,9 +49,9 @@ class Backlinks extends Command
      *     mw backlinks "Help:Contents" --namespace=Help --field=title
      *
      * @param string[] $args
-     * @param array<string,string|bool> $assoc_args
+     * @param array<string,string|bool> $assocArgs
      */
-    public function __invoke(array $args, array $assoc_args): void
+    public function __invoke(array $args, array $assocArgs): void
     {
         $target = $this->services()->getTitleFactory()->newFromText($args[0], static::DEFAULT_NAMESPACE);
         // Interwiki and special pages have no link table entries, and a bare "#fragment" names no page.
@@ -65,12 +65,13 @@ class Backlinks extends Command
             ->where($this->services()->getLinksMigration()->getLinksConditions(static::TABLE, $target))
             ->orderBy(['page_namespace', 'page_title'])
             ->caller(__METHOD__);
-        $limit = $this->limit($assoc_args);
+        $limit = $this->limit($assocArgs);
         if ($limit !== null) {
             $query->limit($limit);
         }
-        if (isset($assoc_args['namespace'])) {
-            $query->andWhere([static::FROM . '_namespace' => $this->namespace((string) $assoc_args['namespace'])]);
+        if (isset($assocArgs['namespace'])) {
+            $namespace = $this->namespace((string) $assocArgs['namespace']);
+            $query->andWhere([static::FROM . '_namespace' => $namespace]);
         }
 
         $formatter = $this->services()->getTitleFormatter();
@@ -83,6 +84,6 @@ class Backlinks extends Command
                 'namespace' => (int) $row->page_namespace,
             ];
         }
-        Formatter::items($rows, $assoc_args, ['id', 'title']);
+        Formatter::items($rows, $assocArgs, ['id', 'title']);
     }
 }

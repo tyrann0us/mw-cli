@@ -30,11 +30,12 @@ class Parse extends Command
      *     echo "''Hello''" | mw parse --title=Sandbox
      *
      * @param string[] $args
-     * @param array<string,string|bool> $assoc_args
+     * @param array<string,string|bool> $assocArgs
      */
-    public function __invoke(array $args, array $assoc_args): void
+    public function __invoke(array $args, array $assocArgs): void
     {
-        $title = $this->services()->getTitleFactory()->newFromText((string) ($assoc_args['title'] ?? 'API'))
+        $titleText = (string) ($assocArgs['title'] ?? 'API');
+        $title = $this->services()->getTitleFactory()->newFromText($titleText)
             ?? Runner::error('Invalid title.');
         $file = $args[0] ?? null;
         if ($file !== null && (is_dir($file) || !is_readable($file))) {
@@ -44,7 +45,7 @@ class Parse extends Command
 
         $options = ParserOptions::newFromAnon();
         $output = $this->services()->getParserFactory()->create()->parse($text, $title, $options);
-        $html = $output->runOutputPipeline($options, ['enableSectionEditLinks' => false])->getContentHolderText();
-        Runner::line($html);
+        $output = $output->runOutputPipeline($options, ['enableSectionEditLinks' => false]);
+        Runner::line($output->getContentHolderText());
     }
 }

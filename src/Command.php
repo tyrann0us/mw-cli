@@ -14,7 +14,8 @@ use Wikimedia\Rdbms\LikeValue;
 /**
  * Base for classes in src/Command/. The file name is the command name (SearchReplace.php is
  * `mw search-replace`). Public methods are subcommands, or the class has __invoke() and none.
- * Each takes (array $args, array $assoc_args) and documents its options in its docblock, see Synopsis.
+ * Each takes (array $args, array $assocArgs) and documents its options in its docblock, see
+ * Synopsis.
  */
 abstract class Command
 {
@@ -31,7 +32,8 @@ abstract class Command
     }
 
     /**
-     * The user from --user (name, or ID if no user has that name), or MediaWiki's "Maintenance script" system user.
+     * The user from --user (name, or ID if no user has that name), or MediaWiki's
+     * "Maintenance script" system user.
      */
     protected function performer(): User
     {
@@ -74,14 +76,14 @@ abstract class Command
     /**
      * --limit as a number, or null without it. Fails unless it's a positive integer.
      *
-     * @param array<string,string|bool> $assoc_args
+     * @param array<string,string|bool> $assocArgs
      */
-    protected function limit(array $assoc_args): ?int
+    protected function limit(array $assocArgs): ?int
     {
-        if (!isset($assoc_args['limit'])) {
+        if (!isset($assocArgs['limit'])) {
             return null;
         }
-        $limit = (string) $assoc_args['limit'];
+        $limit = (string) $assocArgs['limit'];
         if (!ctype_digit($limit) || (int) $limit < 1) {
             Runner::error('--limit must be a positive number.');
         }

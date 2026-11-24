@@ -12,9 +12,23 @@ namespace MwCli;
 class Config
 {
     /**
-     * @return array{0: array<string,mixed>, 1: string[]} Merged config and the files that were read.
+     * @return array{0: array<string,mixed>, 1: string[]} Merged config and the files that were
+     *     read.
      */
     public static function load(string $cwd, ?string $home): array
+    {
+        $files = self::files($cwd, $home);
+        $config = [];
+        foreach ($files as $file) {
+            $config = array_replace_recursive($config, self::read($file));
+        }
+        return [$config, $files];
+    }
+
+    /**
+     * @return string[] ~/.mw/config.ini and the nearest mw.ini, if they exist.
+     */
+    private static function files(string $cwd, ?string $home): array
     {
         $files = [];
         if ($home !== null && is_file("$home/.mw/config.ini")) {
@@ -29,26 +43,30 @@ class Config
                 break;
             }
         }
+        return $files;
+    }
 
-        $config = [];
-        foreach ($files as $file) {
-			// phpcs:ignore Generic.PHP.NoSilencedErrors.Discouraged -- Runner::error() reports it.
-            $ini = @parse_ini_file($file, true, INI_SCANNER_TYPED);
-            if ($ini === false) {
-                Runner::error("Can't parse config file $file.");
-            }
-            // Remember where each path was set: a relative one is relative to that file, unless
-            // it ends up in an SSH alias, which only resolve() knows after all files are merged.
-            foreach ([null, ...array_keys(array_filter($ini, 'is_array'))] as $section) {
-                if ($section === null && isset($ini['path'])) {
-                    $ini['path-base'] = dirname($file);
-                } elseif ($section !== null && isset($ini[$section]['path'])) {
-                    $ini[$section]['path-base'] = dirname($file);
-                }
-            }
-            $config = array_replace_recursive($config, $ini);
+    /**
+     * @return array<string,mixed>
+     */
+    private static function read(string $file): array
+    {
+        // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- Runner::error() reports it.
+        $ini = @parse_ini_file($file, true, INI_SCANNER_TYPED);
+        if ($ini === false) {
+            Runner::error("Can't parse config file $file.");
         }
-        return [$config, $files];
+        // Remember where each path was set: a relative one is relative to that file, unless
+        // it ends up in an SSH alias, which only resolve() knows after all files are merged.
+        if (isset($ini['path'])) {
+            $ini['path-base'] = dirname($file);
+        }
+        foreach (array_keys(array_filter($ini, 'is_array')) as $section) {
+            if (isset($ini[$section]['path'])) {
+                $ini[$section]['path-base'] = dirname($file);
+            }
+        }
+        return $ini;
     }
 
     /**
@@ -63,44 +81,62 @@ class Config
     public static function resolve(array $config, ?string $alias, array $flags): array
     {
         $global = array_intersect_key(
-            self::rebase(array_filter($config, static fn ($v) => !is_array($v))),
+            self::rebase(array_filter($config, static fn (mixed $value): bool => !is_array($value))),
             array_flip(Runner::GLOBAL_FLAGS)
         );
-
         if ($alias !== null) {
-            $section = $config[$alias] ?? null;
-            if (!is_array($section)) {
-                Runner::error("Alias '$alias' not found.");
-            }
-            $section = array_intersect_key(
-                isset($section['ssh']) ? $section : self::rebase($section),
-                array_flip(Runner::GLOBAL_FLAGS)
-            );
-            if (isset($section['ssh'])) {
-                foreach (['path', 'user'] as $key) {
-                    if (isset($section[$key])) {
-                        $global["remote-$key"] = $section[$key];
-                        unset($section[$key]);
-                    }
-                }
-            }
-            $global = array_replace($global, $section);
+            $global = array_replace($global, self::alias($config, $alias));
         }
 
         $out = [];
         foreach (array_replace($global, $flags) as $key => $value) {
-            if ($key === 'quiet') {
-                $out[$key] = is_string($value)
-                    ? filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE)
-                        ?? Runner::error('--quiet must be true or false.')
-                    : (bool) $value;
-            } elseif (is_bool($value) || $value === '' || !is_scalar($value)) {
-                Runner::error("--$key needs a value.");
-            } else {
-                $out[$key] = (string) $value;
-            }
+            $out[$key] = self::normalize($key, $value);
         }
         return $out;
+    }
+
+    /**
+     * The alias section's global flags. With "ssh", path and user become remote-path and
+     * remote-user.
+     *
+     * @param array<string,mixed> $config
+     * @return array<string,mixed>
+     */
+    private static function alias(array $config, string $alias): array
+    {
+        $section = $config[$alias] ?? null;
+        if (!is_array($section)) {
+            Runner::error("Alias '$alias' not found.");
+        }
+        if (!isset($section['ssh'])) {
+            return array_intersect_key(self::rebase($section), array_flip(Runner::GLOBAL_FLAGS));
+        }
+        $section = array_intersect_key($section, array_flip(Runner::GLOBAL_FLAGS));
+        $remote = [];
+        foreach (['path', 'user'] as $key) {
+            if (isset($section[$key])) {
+                $remote["remote-$key"] = $section[$key];
+                unset($section[$key]);
+            }
+        }
+        return $remote + $section;
+    }
+
+    /**
+     * quiet as a bool, everything else as a non-empty string.
+     */
+    private static function normalize(string $key, mixed $value): string|bool
+    {
+        if ($key === 'quiet') {
+            return is_string($value)
+                ? filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE)
+                    ?? Runner::error('--quiet must be true or false.')
+                : (bool) $value;
+        }
+        if (is_bool($value) || $value === '' || !is_scalar($value)) {
+            Runner::error("--$key needs a value.");
+        }
+        return (string) $value;
     }
 
     /**

@@ -17,18 +17,17 @@ class Runner
     public const GLOBAL_FLAGS = ['path', 'ssh', 'user', 'quiet'];
 
     /** @var array<string,class-string<Command>> */
-    public array $commands = [];
+    private array $commands = [];
     /** @var string[] Positional arguments, command and subcommand included. */
-    public array $args = [];
+    private array $args = [];
     /** @var array<string,string|bool> Command options. */
-    public array $assoc = [];
+    private array $assoc = [];
     /** @var array<string,string|bool> Global flags after config and alias were applied. */
-    public array $global = [];
+    private array $global = [];
     /** @var string[] Config files that were read. */
-    public array $configFiles = [];
+    private array $configFiles = [];
 
     private static bool $quiet = false;
-    private ?string $alias = null;
     /** @var string[] argv without the alias, for forwarding over SSH. */
     private array $tokens = [];
     private string $cwd;
@@ -50,10 +49,11 @@ class Runner
         }
 
         // The alias is the first positional token, so global flags may come before it.
+        $alias = null;
         foreach ($argv as $i => $token) {
             if (!str_starts_with($token, '--')) {
                 if (str_starts_with($token, '@')) {
-                    $this->alias = $token;
+                    $alias = $token;
                     array_splice($argv, $i, 1);
                 }
                 break;
@@ -66,8 +66,32 @@ class Runner
         $this->assoc = array_diff_key($assoc, $flags);
 
         [$config, $this->configFiles] = Config::load($cwd, $home);
-        $this->global = Config::resolve($config, $this->alias, $flags);
+        $this->global = Config::resolve($config, $alias, $flags);
         self::$quiet = !empty($this->global['quiet']);
+    }
+
+    /**
+     * @return array<string,class-string<Command>> Command classes by command name.
+     */
+    public function commands(): array
+    {
+        return $this->commands;
+    }
+
+    /**
+     * @return array<string,string|bool> Command options, without the global flags.
+     */
+    public function options(): array
+    {
+        return $this->assoc;
+    }
+
+    /**
+     * @return string[] Config files that were read.
+     */
+    public function configFiles(): array
+    {
+        return $this->configFiles;
     }
 
     /**
@@ -86,15 +110,12 @@ class Runner
                 array_push($args, ...$argv);
                 break;
             }
-            if (!preg_match('/^--([^=]+)(?:=(.*))?$/s', $token, $m)) {
+            if (!preg_match('/^--([^=]+)(?:=(.*))?$/s', $token, $match)) {
                 $args[] = $token;
-            } elseif (isset($m[2])) {
-                $assoc[$m[1]] = $m[2];
-            } elseif (str_starts_with($m[1], 'no-')) {
-                $assoc[substr($m[1], 3)] = false;
-            } else {
-                $assoc[$m[1]] = true;
+                continue;
             }
+            $negated = !isset($match[2]) && str_starts_with($match[1], 'no-');
+            $assoc[$negated ? substr($match[1], 3) : $match[1]] = $match[2] ?? !$negated;
         }
         return [$args, $assoc];
     }
@@ -111,11 +132,11 @@ class Runner
             return null;
         }
         // ponytail: [user@]host[:port][/path] only; add docker:/vagrant: schemes when asked.
-        if (!preg_match('#^(?:([^@/]+)@)?([^-:/~@][^:/~@]*)(?::(\d+))?([/~].*)?$#', $ssh, $m)) {
+        if (!preg_match('#^(?:([^@/]+)@)?([^-:/~@][^:/~@]*)(?::(\d+))?([/~].*)?$#', $ssh, $match)) {
             self::error("Invalid --ssh value '$ssh'. Expected [user@]host[:port][/path].");
         }
-        $target = ($m[1] !== '' ? "$m[1]@" : '') . $m[2];
-        $path = ($m[4] ?? '') !== '' ? $m[4] : $this->flag('remote-path');
+        $target = ($match[1] !== '' ? "$match[1]@" : '') . $match[2];
+        $path = ($match[4] ?? '') !== '' ? $match[4] : $this->flag('remote-path');
 
         // Flags given on the command line are forwarded as-is and win over the alias.
         // Tokens after "--" belong to the command (e.g. a maintenance script), not to mw.
@@ -140,7 +161,7 @@ class Runner
         // and pre-login banners; errors such as a changed host key still show.
         $tty ??= stream_isatty(STDIN) && stream_isatty(STDOUT);
         return 'ssh ' . ($tty ? '-t -o LogLevel=ERROR' : '-T') . ' -o RemoteCommand=none'
-            . (($m[3] ?? '') !== '' ? " -p $m[3]" : '')
+            . (($match[3] ?? '') !== '' ? " -p $match[3]" : '')
             . ' -- ' . escapeshellarg($target) . ' ' . escapeshellarg($remote);
     }
 
@@ -159,36 +180,53 @@ class Runner
             return $this->wikiPath;
         }
         $path = $this->flag('path');
-        if ($path !== null) {
-            if ($this->home !== null && preg_match('#^~(/|$)#', $path)) {
-                $path = $this->home . substr($path, 1);
-            }
-            $path = str_starts_with($path, '/') ? $path : "$this->cwd/$path";
-            if (!self::isWiki($path)) {
-                self::error("No MediaWiki installation found in '$path'.");
-            }
-        } else {
-            for ($path = $this->cwd; !self::isWiki($path); $path = dirname($path)) {
-                if (dirname($path) === $path) {
-                    self::error(
-                        'This does not seem to be a MediaWiki installation. Pass --path=<path> or run mw inside one.'
-                    );
-                }
-            }
-        }
+        $path = $path === null ? $this->findWikiPath() : $this->expandWikiPath($path);
         $path = realpath($path) ?: $path;
 
         $defines = (string) file_get_contents("$path/includes/Defines.php");
-        preg_match("/define\( 'MW_VERSION', '([^']+)'/", $defines, $m);
-        if (version_compare($m[1] ?? '0', '1.43', '<')) {
-            self::error('mw needs MediaWiki 1.43 or later, found ' . ($m[1] ?? 'unknown') . '.');
+        preg_match("/define\( 'MW_VERSION', '([^']+)'/", $defines, $match);
+        $version = $match[1] ?? null;
+        if (version_compare($version ?? '0', '1.43', '<')) {
+            self::error('mw needs MediaWiki 1.43 or later, found ' . ($version ?? 'unknown') . '.');
         }
         $this->wikiPath = $path;
         return $path;
     }
 
     /**
-     * A global flag. Config::resolve() made sure path, ssh, user and their remote- forms are strings.
+     * The --path value with ~ expanded and made absolute. Fails if it isn't a wiki.
+     */
+    private function expandWikiPath(string $path): string
+    {
+        if ($this->home !== null && preg_match('#^~(/|$)#', $path)) {
+            $path = $this->home . substr($path, 1);
+        }
+        $path = str_starts_with($path, '/') ? $path : "$this->cwd/$path";
+        if (!self::isWiki($path)) {
+            self::error("No MediaWiki installation found in '$path'.");
+        }
+        return $path;
+    }
+
+    /**
+     * The nearest parent of the cwd that is a wiki.
+     */
+    private function findWikiPath(): string
+    {
+        for ($path = $this->cwd; !self::isWiki($path); $path = dirname($path)) {
+            if (dirname($path) === $path) {
+                self::error(
+                    'This does not seem to be a MediaWiki installation. '
+                    . 'Pass --path=<path> or run mw inside one.'
+                );
+            }
+        }
+        return $path;
+    }
+
+    /**
+     * A global flag. Config::resolve() made sure path, ssh, user and their remote- forms
+     * are strings.
      */
     public function flag(string $key): ?string
     {
@@ -215,8 +253,8 @@ class Runner
             $this->validate();
             (new $command($this))->$method($args, $this->assoc);
             return 0;
-        } catch (ExitException $e) {
-            return self::report($e);
+        } catch (ExitException $exception) {
+            return self::report($exception);
         }
     }
 
@@ -272,17 +310,20 @@ class Runner
     public function commandWords(): array
     {
         [, $method, $args] = $this->resolve($this->args);
-        return array_slice($this->args, 0, count($this->args) - ($method === null ? 0 : count($args)));
+        $length = count($this->args) - ($method === null ? 0 : count($args));
+        return array_slice($this->args, 0, $length);
     }
 
     /**
      * Finds the method for the command words. A method named in camelCase is a subcommand of
-     * several words (categoryList is `category list`); the longest run of words that names one wins.
+     * several words (categoryList is `category list`); the longest run of words that names one
+     * wins.
      * Words that start subcommand names without naming one (`page category`) are a group:
      * the method is then null and the group's words are returned in place of the args.
      *
      * @param string[] $args
-     * @return array{0: class-string<Command>, 1: ?string, 2: string[]} Class, method (null: show help), args.
+     * @return array{0: class-string<Command>, 1: ?string, 2: string[]}
+     *     Class, method (null: show help), args.
      */
     public function resolve(array $args): array
     {
@@ -298,18 +339,24 @@ class Runner
         foreach (self::subcommands($class) as $method) {
             $methods[self::subcommandName($method)] = $method;
         }
-        for ($n = count($args) - 1; $n > 0; $n--) {
-            $words = implode(' ', array_slice($args, 1, $n));
+        for ($count = count($args) - 1; $count > 0; $count--) {
+            $words = implode(' ', array_slice($args, 1, $count));
             if (isset($methods[$words])) {
-                return [$class, $methods[$words], array_slice($args, $n + 1)];
+                return [$class, $methods[$words], array_slice($args, $count + 1)];
             }
         }
         $group = [];
         foreach (array_slice($args, 1) as $word) {
             $prefix = implode(' ', [...$group, $word]) . ' ';
-            if (!array_filter(array_keys($methods), static fn ($sub) => str_starts_with($sub, $prefix))) {
+            $matching = array_filter(
+                array_keys($methods),
+                static fn (string $subcommand): bool => str_starts_with($subcommand, $prefix)
+            );
+            if (!$matching) {
                 $parent = implode(' ', [$name, ...$group]);
-                self::error("'$word' is not a registered subcommand of '$parent'. See 'mw help $parent'.");
+                self::error(
+                    "'$word' is not a registered subcommand of '$parent'. See 'mw help $parent'."
+                );
             }
             $group[] = $word;
         }
@@ -323,9 +370,14 @@ class Runner
     public static function subcommands(string $class): array
     {
         $methods = [];
-        foreach ((new ReflectionClass($class))->getMethods(ReflectionMethod::IS_PUBLIC) as $m) {
-            if (!$m->isStatic() && !$m->isConstructor() && $m->getDeclaringClass()->getName() === $class) {
-                $methods[] = $m->getName();
+        $public = (new ReflectionClass($class))->getMethods(ReflectionMethod::IS_PUBLIC);
+        foreach ($public as $method) {
+            if (
+                !$method->isStatic()
+                && !$method->isConstructor()
+                && $method->getDeclaringClass()->getName() === $class
+            ) {
+                $methods[] = $method->getName();
             }
         }
         return $methods;
@@ -335,7 +387,8 @@ class Runner
     {
         $name = array_search($class, $this->commands, true);
         $sub = $method === '__invoke' ? '' : ' ' . self::subcommandName($method);
-        $synopsis = Synopsis::parse((new ReflectionMethod($class, $method))->getDocComment() ?: '')['synopsis'];
+        $doc = (new ReflectionMethod($class, $method))->getDocComment() ?: '';
+        $synopsis = Synopsis::parse($doc)['synopsis'];
         return trim("mw $name$sub $synopsis");
     }
 
@@ -355,12 +408,12 @@ class Runner
         return strtolower((string) preg_replace('/(?<!^)[A-Z]/', '-$0', $name));
     }
 
-    public static function report(ExitException $e): int
+    public static function report(ExitException $exception): int
     {
-        if ($e->getMessage() !== '') {
-            fwrite(STDERR, 'Error: ' . $e->getMessage() . "\n");
+        if ($exception->getMessage() !== '') {
+            fwrite(STDERR, 'Error: ' . $exception->getMessage() . "\n");
         }
-        return $e->getCode();
+        return $exception->getCode();
     }
 
     public static function line(string $message = ''): void

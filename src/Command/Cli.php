@@ -23,9 +23,9 @@ class Cli extends Command
      *     mw cli version
      *
      * @param string[] $args
-     * @param array<string,string|bool> $assoc_args
+     * @param array<string,string|bool> $assocArgs
      */
-    public function version(array $args, array $assoc_args): void
+    public function version(array $args, array $assocArgs): void
     {
         Runner::line('mw ' . Runner::VERSION);
     }
@@ -49,9 +49,9 @@ class Cli extends Command
      *     mw cli info --format=json
      *
      * @param string[] $args
-     * @param array<string,string|bool> $assoc_args
+     * @param array<string,string|bool> $assocArgs
      */
-    public function info(array $args, array $assoc_args): void
+    public function info(array $args, array $assocArgs): void
     {
         Formatter::item([
             'os' => php_uname('s') . ' ' . php_uname('r'),
@@ -59,7 +59,7 @@ class Cli extends Command
             'php_version' => PHP_VERSION,
             'mw_cli_dir' => dirname(__DIR__, 2),
             'mw_cli_version' => Runner::VERSION,
-            'config_files' => implode(', ', $this->cli->configFiles),
-        ], $assoc_args);
+            'config_files' => implode(', ', $this->cli->configFiles()),
+        ], $assocArgs);
     }
 }

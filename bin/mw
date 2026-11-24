@@ -26,8 +26,8 @@ try {
     }
     $mwCli->validate();
     $mwPath = $mwCli->wikiPath();
-} catch (MwCli\ExitException $e) {
-    exit(MwCli\Runner::report($e));
+} catch (MwCli\ExitException $exception) {
+    exit(MwCli\Runner::report($exception));
 }
 
 // MediaWiki's Setup.php expects to run in global scope, so this stays a file-scope require.
