@@ -1,4 +1,4 @@
-Feature: List category members and the categories of pages
+Feature: List categories and the categories of a page
 
   Background:
     Given a file "/tmp/pages/Apple" with:
@@ -7,7 +7,7 @@ Feature: List category members and the categories of pages
       """
     And a file "/tmp/pages/Banana" with:
       """
-      [[Category:Fruit]] [[Category:Yellow]]
+      [[Category:Fruit]] [[Category:Fruit/Yellow]]
       """
     And a file "/tmp/pages/Category:Citrus" with:
       """
@@ -22,128 +22,125 @@ Feature: List category members and the categories of pages
       [[Category:Help:Guides]]
       """
     When I run "mw maint importTextFiles --quiet /tmp/pages/*"
+    # Newer MediaWiki versions update category counts in a job.
+    And I run "mw maint runJobs --quiet"
 
-  Scenario: Members are listed with title, namespace and type
-    When I run "mw category members Fruit"
-    Then STDOUT should be like:
-      """
-      id	title	namespace	type
-      {id}	Apple	0	page
-      {id}	Banana	0	page
-      {id}	Category:Citrus	14	subcat
-      {id}	File:Pear	6	file
-      """
-    When I run "mw category members :category:fruit --format=count"
+  Scenario: Categories with members are listed with their counts
+    # Scoped with --prefix: Semantic MediaWiki adds categories of its own.
+    When I run "mw category list --prefix=fruit"
     Then STDOUT should be:
       """
-      4
+      title	pages	subcats	files
+      Category:Fruit	2	1	1
+      Category:Fruit/Yellow	1	0	0
       """
-
-  Scenario: Members can be filtered by type and namespace
-    When I run "mw category members Category:Fruit --type=subcat --field=title"
+    When I run "mw category list --prefix=Fruit/ --format=csv --fields=title,members"
     Then STDOUT should be:
       """
-      Category:Citrus
+      title,members
+      Category:Fruit/Yellow,1
       """
-    When I run "mw category members Fruit --namespace=File --fields=title,id --format=csv"
-    Then STDOUT should be like:
+    When I run "mw category list --prefix=Fruit --limit=1 --field=title"
+    Then STDOUT should be:
       """
-      title,id
-      File:Pear,{id}
+      Category:Fruit
       """
-    When I run "mw category members Fruit --namespace='Category talk' --format=count"
+    When I run "mw category list --prefix=Help: --fields=title,members --format=json"
+    Then STDOUT should be:
+      """
+      [{"title":"Category:Help:Guides","members":1}]
+      """
+    When I run "mw category list --prefix=Nothing --format=count"
     Then STDOUT should be:
       """
       0
       """
-    When I run "mw category members Fruit --namespace=0 --type=page --fields=id,title"
-    Then STDOUT should be like:
-      """
-      id	title
-      {id}	Apple
-      {id}	Banana
-      """
-    When I run "mw category members Fruit --namespace=0 --type=page --format=ids"
-    Then STDOUT should be like:
-      """
-      {id} {id}
-      """
-
-  Scenario: A category name in another namespace's form is still a category
-    When I run "mw category members Help:Guides --field=title"
+    When I run "mw category list --limit=1 --format=count"
     Then STDOUT should be:
       """
-      Help:Peeling
+      1
       """
 
-  Scenario: Members of a category without members or page are empty
-    When I run "mw category members Nothing --format=json"
+  Scenario: An emptied category is not listed
+    When I run "echo 'No more fruit' | mw page put Apple && echo 'No more fruit' | mw page put Banana"
+    And I run "echo 'Gone' | mw page put Category:Citrus && echo 'Gone' | mw page put File:Pear"
+    And I run "mw maint runJobs --quiet"
+    And I run "mw category list --prefix=Fruit --format=count"
     Then STDOUT should be:
       """
-      []
+      0
       """
 
-  Scenario: Bad member options are rejected
-    When I try "mw category members Fruit --type=video"
-    Then the return code should be 1
-    And STDERR should contain:
-      """
-      Error: Invalid type. Use one of: page, subcat, file.
-      """
-    When I try "mw category members Fruit --namespace=Nope"
-    Then the return code should be 1
-    And STDERR should contain:
-      """
-      Error: Unknown namespace 'Nope'.
-      """
-    When I try "mw category members Fruit --namespace=9999"
-    Then the return code should be 1
-    And STDERR should contain:
-      """
-      Error: Unknown namespace '9999'.
-      """
-    When I try "mw category members Fruit --namespace"
-    Then the return code should be 1
-    And STDERR should contain:
-      """
-      Error: --namespace needs a value.
-      """
-    When I try "mw category members Fruit --namespace="
-    Then the return code should be 1
-    And STDERR should contain:
-      """
-      Error: --namespace needs a value.
-      """
-    When I try "mw category members '<'"
-    Then the return code should be 1
-    And STDERR should contain:
-      """
-      Error: Invalid category name: <.
-      """
-    When I try "mw category members Category:"
-    Then the return code should be 1
-    And STDERR should contain:
-      """
-      Error: Invalid category name: Category:.
-      """
-
-  Scenario: Categories of pages, one row per page and category
-    When I run "mw category of Banana Apple Main_Page apple"
+  Scenario: Categories of a page, sorted by name
+    When I run "mw page category list Banana"
     Then STDOUT should be:
       """
       title	category
       Banana	Category:Fruit
-      Banana	Category:Yellow
-      Apple	Category:Fruit
+      Banana	Category:Fruit/Yellow
+      """
+    When I run "mw page category list banana --limit=1 --field=category"
+    Then STDOUT should be:
+      """
+      Category:Fruit
+      """
+    When I run "mw page category list Main_Page --format=count"
+    Then STDOUT should be:
+      """
+      0
       """
 
-  Scenario: Categories of a missing page fail
-    When I try "mw category of Apple Nope"
+  Scenario: Categories of a missing or invalid page fail
+    When I try "mw page category list Nope"
     Then the return code should be 1
     And STDERR should contain:
       """
-      Error: Page not found: Nope.
+      Error: Page 'Nope' doesn't exist.
       """
     And STDOUT should be:
       """
+      """
+    When I try "mw page category list '<'"
+    Then the return code should be 1
+    And STDERR should contain:
+      """
+      Error: Invalid page title '<'.
+      """
+    When I try "mw page category list"
+    Then the return code should be 1
+    And STDERR should contain:
+      """
+      Error: Missing argument: title.
+      """
+
+  Scenario: A bad limit fails on every list command
+    When I try "mw category list --limit=0"
+    Then the return code should be 1
+    And STDERR should contain:
+      """
+      Error: --limit must be a positive number.
+      """
+    When I try "mw page category list Banana --limit=two"
+    Then the return code should be 1
+    And STDERR should contain:
+      """
+      Error: --limit must be a positive number.
+      """
+    When I try "mw page list --limit=-1"
+    Then the return code should be 1
+    And STDERR should contain:
+      """
+      Error: --limit must be a positive number.
+      """
+    When I try "mw backlinks Apple --limit=1.5"
+    Then the return code should be 1
+    And STDERR should contain:
+      """
+      Error: --limit must be a positive number.
+      """
+    When I try "mw transclusions Apple --limit="
+    Then the return code should be 1
+    And STDERR should contain:
+      """
+      Error: --limit must be a positive number.
       """

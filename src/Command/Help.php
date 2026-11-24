@@ -25,6 +25,7 @@ class Help extends Command {
 	 * ## EXAMPLES
 	 *
 	 *     mw help page get
+	 *     mw help page category list
 	 *
 	 * @param string[] $args
 	 * @param array<string,string|bool> $assoc_args
@@ -38,15 +39,22 @@ class Help extends Command {
 			return;
 		}
 
-		[ $class, $method ] = $this->cli->resolve( $args );
+		[ $class, $method, $group ] = $this->cli->resolve( $args );
 		if ( $method === null ) {
-			$name = $args[0];
-			Runner::line( self::summary( new ReflectionClass( $class ) ) . "\n" );
+			// The command, or a group of subcommands such as `page category`.
+			$name = implode( ' ', [ $args[0], ...$group ] );
+			$prefix = $group ? implode( ' ', $group ) . ' ' : '';
+			if ( !$group ) {
+				Runner::line( self::summary( new ReflectionClass( $class ) ) . "\n" );
+			}
 			Runner::line( "usage: mw $name <subcommand>\n" );
 			Runner::line( 'Subcommands:' );
 			$subs = [];
 			foreach ( Runner::subcommands( $class ) as $m ) {
-				$subs[Runner::kebab( $m )] = self::summary( new ReflectionMethod( $class, $m ) );
+				$sub = Runner::subcommandName( $m );
+				if ( str_starts_with( $sub, $prefix ) ) {
+					$subs[substr( $sub, strlen( $prefix ) )] = self::summary( new ReflectionMethod( $class, $m ) );
+				}
 			}
 			$this->list( $subs );
 			return;

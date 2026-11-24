@@ -134,10 +134,10 @@ Feature: Search and replace text in many pages
       """
       Error: --namespace needs a value.
       """
-    When I try "mw search-replace '/a/' x --category=Help:Fruit"
+    When I try "mw search-replace '/a/' x --category='<'"
     Then STDERR should contain:
       """
-      Error: Invalid category 'Help:Fruit'.
+      Error: Invalid category '<'.
       """
     When I try "mw --user=Nobody search-replace '/a/' x"
     Then STDERR should contain:

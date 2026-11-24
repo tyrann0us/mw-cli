@@ -214,6 +214,63 @@ Feature: Read, edit and manage pages
       Error: --namespace needs a value.
       """
 
+  Scenario: List pages in a category
+    When I run "echo '[[Category:Fruit]]' | mw page put Apple && echo '[[Category:Fruit]]' | mw page put Banana"
+    And I run "echo '[[Category:Fruit]]' | mw page put Category:Citrus && echo '[[Category:Fruit]]' | mw page put Help:Apple"
+    And I run "echo '[[Category:Help:Guides]]' | mw page put Help:Peeling"
+    And I run "mw page list --category=Fruit"
+    Then STDOUT should be like:
+      """
+      id	title
+      {id}	Apple
+      {id}	Banana
+      {id}	Help:Apple
+      {id}	Category:Citrus
+      """
+    When I run "mw page list --category=:category:fruit --namespace=Category --field=title"
+    Then STDOUT should be:
+      """
+      Category:Citrus
+      """
+    When I run "mw page list --category=Category:Fruit --prefix=b --field=title"
+    Then STDOUT should be:
+      """
+      Banana
+      """
+    When I run "mw page list --category=Fruit --limit=2 --field=title"
+    Then STDOUT should be:
+      """
+      Apple
+      Banana
+      """
+    When I run "mw page list --category=Help:Guides --field=title"
+    Then STDOUT should be:
+      """
+      Help:Peeling
+      """
+    When I run "mw page list --category=Nothing --format=count"
+    Then STDOUT should be:
+      """
+      0
+      """
+    When I run "mw page list --namespace=0 --limit=1 --field=title"
+    Then STDOUT should be:
+      """
+      Apple
+      """
+    When I try "mw page list --category='<'"
+    Then the return code should be 1
+    And STDERR should contain:
+      """
+      Error: Invalid category '<'.
+      """
+    When I try "mw page list --category=Category:"
+    Then the return code should be 1
+    And STDERR should contain:
+      """
+      Error: Invalid category 'Category:'.
+      """
+
   Scenario: Delete asks for confirmation
     When I run "echo a | mw page put Foo"
     And I try "mw page delete Foo"

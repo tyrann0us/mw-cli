@@ -2,6 +2,7 @@
 
 namespace MwCli\Command;
 
+use MediaWiki\Category\Category;
 use MediaWiki\CommentStore\CommentStoreComment;
 use MediaWiki\Context\RequestContext;
 use MediaWiki\MainConfigNames;
@@ -12,11 +13,9 @@ use MwCli\Formatter;
 use MwCli\Runner;
 use StatusValue;
 use Wikimedia\ParamValidator\TypeDef\ExpiryDef;
-use Wikimedia\Rdbms\IExpression;
-use Wikimedia\Rdbms\LikeValue;
 
 /**
- * Reads, edits, lists, deletes, moves, protects and purges pages.
+ * Reads, edits, lists, deletes, moves, protects and purges pages, and lists their categories.
  */
 class Page extends Command {
 	/**
@@ -111,6 +110,9 @@ class Page extends Command {
 	/**
 	 * Lists pages.
 	 *
+	 * Pages are sorted by namespace, then title. Subcategories and files in a category are pages
+	 * in the Category (14) and File (6) namespaces, so --namespace picks them out.
+	 *
 	 * ## OPTIONS
 	 *
 	 * [--namespace=<namespace>]
@@ -118,6 +120,12 @@ class Page extends Command {
 	 *
 	 * [--prefix=<prefix>]
 	 * : Only titles that start with this, without the namespace.
+	 *
+	 * [--category=<category>]
+	 * : Only pages in this category, e.g. Fruit or Category:Fruit. The prefix can be in the wiki's language.
+	 *
+	 * [--limit=<n>]
+	 * : List at most this many pages.
 	 *
 	 * [--format=<format>]
 	 * : table, json, csv, yaml, ids or count.
@@ -132,6 +140,8 @@ class Page extends Command {
 	 *
 	 *     mw page list --namespace=Help
 	 *     mw page list --prefix=Sandbox/ --format=ids
+	 *     mw page list --category=Fruit --namespace=Category --field=title
+	 *     mw page list --limit=10
 	 *
 	 * @param string[] $args
 	 * @param array<string,string|bool> $assoc_args
@@ -141,16 +151,26 @@ class Page extends Command {
 		$query = $this->services()->getPageStore()->newSelectQueryBuilder( $db )
 			->orderBy( [ 'page_namespace', 'page_title' ] )
 			->caller( __METHOD__ );
+		$limit = $this->limit( $assoc_args );
+		if ( $limit !== null ) {
+			$query->limit( $limit );
+		}
 		$namespace = isset( $assoc_args['namespace'] ) ? $this->namespace( (string)$assoc_args['namespace'] ) : null;
 		if ( $namespace !== null ) {
 			$query->whereNamespace( $namespace );
 		}
 		if ( isset( $assoc_args['prefix'] ) ) {
-			$prefix = strtr( (string)$assoc_args['prefix'], ' ', '_' );
-			if ( $this->services()->getNamespaceInfo()->isCapitalized( $namespace ?? NS_MAIN ) ) {
-				$prefix = $this->services()->getContentLanguage()->ucfirst( $prefix );
+			$query->where( $this->titlePrefix( $db, 'page_title', (string)$assoc_args['prefix'], $namespace ?? NS_MAIN ) );
+		}
+		if ( isset( $assoc_args['category'] ) ) {
+			// getMembers() hides the categorylinks schema change after 1.43. It only collects the IDs,
+			// so the query above still sorts, filters and limits in the database.
+			$ids = [];
+			foreach ( Category::newFromTitle( $this->category( (string)$assoc_args['category'] ) )->getMembers() as $member ) {
+				$ids[] = $member->getArticleID();
 			}
-			$query->where( $db->expr( 'page_title', IExpression::LIKE, new LikeValue( $prefix, $db->anyString() ) ) );
+			// No page has ID 0, and an empty list would be invalid SQL.
+			$query->where( [ 'page_id' => $ids ?: [ 0 ] ] );
 		}
 
 		$formatter = $this->services()->getTitleFormatter();
@@ -164,6 +184,55 @@ class Page extends Command {
 			];
 		}
 		Formatter::items( $rows, $assoc_args, [ 'id', 'title' ] );
+	}
+
+	/**
+	 * Lists the categories of a page.
+	 *
+	 * Categories are sorted by name. Hidden categories are included.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <title>
+	 * : Page title.
+	 *
+	 * [--limit=<n>]
+	 * : List at most this many categories.
+	 *
+	 * [--format=<format>]
+	 * : table, json, csv, yaml, ids or count.
+	 *
+	 * [--fields=<fields>]
+	 * : Comma-separated fields to show: title, category. Default: both.
+	 *
+	 * [--field=<field>]
+	 * : Prints only the value of this field.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     mw page category list Main_Page
+	 *     mw page category list Apple --field=category
+	 *
+	 * @param string[] $args
+	 * @param array<string,string|bool> $assoc_args
+	 */
+	public function categoryList( array $args, array $assoc_args ): void {
+		$limit = $this->limit( $assoc_args );
+		$title = $this->title( $args[0] );
+		if ( !$title->exists() ) {
+			$this->missing( $title );
+		}
+		$categories = [];
+		foreach ( $this->services()->getWikiPageFactory()->newFromTitle( $title )->getCategories() as $category ) {
+			$categories[] = $category->getPrefixedText();
+		}
+		sort( $categories );
+		$rows = [];
+		// getCategories() takes no limit, and a page has few categories.
+		foreach ( array_slice( $categories, 0, $limit ) as $category ) {
+			$rows[] = [ 'title' => $title->getPrefixedText(), 'category' => $category ];
+		}
+		Formatter::items( $rows, $assoc_args, [ 'title', 'category' ] );
 	}
 
 	/**

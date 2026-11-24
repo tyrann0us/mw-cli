@@ -3,7 +3,11 @@
 namespace MwCli;
 
 use MediaWiki\MediaWikiServices;
+use MediaWiki\Title\Title;
 use MediaWiki\User\User;
+use Wikimedia\Rdbms\IExpression;
+use Wikimedia\Rdbms\IReadableDatabase;
+use Wikimedia\Rdbms\LikeValue;
 
 /**
  * Base for classes in src/Command/. The file name is the command name (SearchReplace.php is
@@ -58,5 +62,47 @@ abstract class Command {
 			Runner::error( "Unknown namespace '$name'." );
 		}
 		return $index;
+	}
+
+	/**
+	 * --limit as a number, or null without it. Fails unless it's a positive integer.
+	 *
+	 * @param array<string,string|bool> $assoc_args
+	 */
+	protected function limit( array $assoc_args ): ?int {
+		if ( !isset( $assoc_args['limit'] ) ) {
+			return null;
+		}
+		$limit = (string)$assoc_args['limit'];
+		if ( !ctype_digit( $limit ) || (int)$limit < 1 ) {
+			Runner::error( '--limit must be a positive number.' );
+		}
+		return (int)$limit;
+	}
+
+	/**
+	 * A condition for titles in this DB key field that start with the prefix, written as on a page.
+	 */
+	protected function titlePrefix( IReadableDatabase $db, string $field, string $prefix, int $namespace ): IExpression {
+		$prefix = strtr( $prefix, ' ', '_' );
+		if ( $this->services()->getNamespaceInfo()->isCapitalized( $namespace ) ) {
+			$prefix = $this->services()->getContentLanguage()->ucfirst( $prefix );
+		}
+		return $db->expr( $field, IExpression::LIKE, new LikeValue( $prefix, $db->anyString() ) );
+	}
+
+	/**
+	 * The category title for a name with or without the (localized) namespace prefix.
+	 */
+	protected function category( string $name ): Title {
+		$factory = $this->services()->getTitleFactory();
+		// A leading colon, as in [[:Category:Foo]], is allowed.
+		$text = ltrim( $name, ':' );
+		$title = $factory->newFromText( $text, NS_CATEGORY );
+		if ( $title && $title->getNamespace() !== NS_CATEGORY ) {
+			// "Help:Foo" names the category Category:Help:Foo, not the help page.
+			$title = $factory->makeTitleSafe( NS_CATEGORY, $text );
+		}
+		return $title ?? Runner::error( "Invalid category '$name'." );
 	}
 }
