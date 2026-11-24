@@ -5,7 +5,7 @@ on:
       - '**.php'
       - 'bin/mw'
       - 'composer.*'
-      - '.phpcs.xml'
+      - 'phpcs.xml.dist'
       - 'phpstan*.neon*'
       - 'phpunit.xml.dist'
       - '.github/workflows/quality-assurance-php.yml'
