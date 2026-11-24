@@ -78,5 +78,6 @@ Commands that are out of MVP scope (upload, XML export/import, `user`, command p
 
 ## Workflow
 
+- Keep the project generic. Don't name a specific wiki, organization, host, domain, server path or account anywhere: code, tests, fixtures, docs, commit messages, PR descriptions or comments. That also holds after testing against a real site. Use placeholders such as `wiki.example.org` or `/var/www/w` instead.
 - Commit messages follow Conventional Commits (`feat(page): add move subcommand`). Keep the body empty or one or two lines. The full explanation goes in the PR description.
 - Before opening a PR, run `/ponytail:ponytail-review`, `/code-review` and `/security-review` on the diff. Run prose (README, `--help` text, PR descriptions) through `/humanizer:humanizer`.
