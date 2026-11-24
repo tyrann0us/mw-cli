@@ -3,6 +3,7 @@
 namespace MwCli;
 
 use MediaWiki\MediaWikiServices;
+use MediaWiki\Title\Title;
 use MediaWiki\User\User;
 use Wikimedia\Rdbms\IExpression;
 use Wikimedia\Rdbms\IReadableDatabase;
@@ -88,5 +89,20 @@ abstract class Command {
 			$prefix = $this->services()->getContentLanguage()->ucfirst( $prefix );
 		}
 		return $db->expr( $field, IExpression::LIKE, new LikeValue( $prefix, $db->anyString() ) );
+	}
+
+	/**
+	 * The category title for a name with or without the (localized) namespace prefix.
+	 */
+	protected function category( string $name ): Title {
+		$factory = $this->services()->getTitleFactory();
+		// A leading colon, as in [[:Category:Foo]], is allowed.
+		$text = ltrim( $name, ':' );
+		$title = $factory->newFromText( $text, NS_CATEGORY );
+		if ( $title && $title->getNamespace() !== NS_CATEGORY ) {
+			// "Help:Foo" names the category Category:Help:Foo, not the help page.
+			$title = $factory->makeTitleSafe( NS_CATEGORY, $text );
+		}
+		return $title ?? Runner::error( "Invalid category '$name'." );
 	}
 }

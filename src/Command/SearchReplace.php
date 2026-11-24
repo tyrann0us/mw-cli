@@ -37,7 +37,7 @@ class SearchReplace extends Command {
 	 * : Replacement text. $1, $2 … insert the groups the pattern captured.
 	 *
 	 * [--category=<category>]
-	 * : Only pages in this category, with or without the namespace prefix.
+	 * : Only pages in this category, e.g. Fruit or Category:Fruit. The prefix can be in the wiki's language.
 	 *
 	 * [--namespace=<namespace>]
 	 * : Only pages in this namespace, by number or name.
@@ -172,12 +172,8 @@ class SearchReplace extends Command {
 	private function pages( array $assoc_args ): iterable {
 		$namespace = isset( $assoc_args['namespace'] ) ? $this->namespace( (string)$assoc_args['namespace'] ) : null;
 		if ( isset( $assoc_args['category'] ) ) {
-			$name = (string)$assoc_args['category'];
-			$title = $this->services()->getTitleFactory()->newFromText( $name, NS_CATEGORY );
-			if ( !$title?->inNamespace( NS_CATEGORY ) ) {
-				Runner::error( "Invalid category '$name'." );
-			}
-			$members = iterator_to_array( Category::newFromTitle( $title )->getMembers(), false );
+			$category = Category::newFromTitle( $this->category( (string)$assoc_args['category'] ) );
+			$members = iterator_to_array( $category->getMembers(), false );
 			return array_filter( $members, static fn ( $member ) => $namespace === null || $member->inNamespace( $namespace ) );
 		}
 		$namespaces = $namespace ?? $this->services()->getNamespaceInfo()->getContentNamespaces();

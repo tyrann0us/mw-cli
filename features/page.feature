@@ -262,13 +262,13 @@ Feature: Read, edit and manage pages
     Then the return code should be 1
     And STDERR should contain:
       """
-      Error: Invalid category name: <.
+      Error: Invalid category '<'.
       """
     When I try "mw page list --category=Category:"
     Then the return code should be 1
     And STDERR should contain:
       """
-      Error: Invalid category name: Category:.
+      Error: Invalid category 'Category:'.
       """
 
   Scenario: Delete asks for confirmation
