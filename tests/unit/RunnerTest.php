@@ -100,8 +100,12 @@ class RunnerTest extends TestCase {
 	}
 
 	public function testSshOnATerminalHidesTheClosedNotice(): void {
-		$cli = new Runner( [ 'cli', 'version', '--ssh=wiki.example.org' ], $this->dir, null );
-		$this->assertStringStartsWith( 'ssh -t -o LogLevel=ERROR -o RemoteCommand=none -- ', (string)$cli->sshCommand( true ) );
+		$cli = new Runner( [ 'cli', 'version', '--ssh=wiki.example.org:2222/w' ], $this->dir, null );
+		$this->assertSame(
+			"ssh -t -o LogLevel=ERROR -o RemoteCommand=none -p 2222 -- 'wiki.example.org' "
+				. escapeshellarg( "'mw' '--path=/w' 'cli' 'version'" ),
+			$cli->sshCommand( true )
+		);
 	}
 
 	public function testSshHostCannotStartWithDash(): void {
