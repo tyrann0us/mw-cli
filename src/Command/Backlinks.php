@@ -5,6 +5,7 @@ namespace MwCli\Command;
 use MwCli\Command;
 use MwCli\Formatter;
 use MwCli\Runner;
+use stdClass;
 
 /**
  * Lists pages that link to a page.
@@ -70,8 +71,8 @@ class Backlinks extends Command {
 
 		$formatter = $this->services()->getTitleFormatter();
 		$rows = [];
-		$res = $query->fetchResultSet();
-		while ( $row = $res->fetchObject() ) {
+		foreach ( $query->fetchResultSet() as $row ) {
+			/** @var stdClass $row */
 			$rows[] = [
 				'id' => (int)$row->page_id,
 				'title' => $formatter->formatTitle( (int)$row->page_namespace, $row->page_title ),

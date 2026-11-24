@@ -9,6 +9,7 @@ use MediaWiki\User\UserNameUtils;
 use MwCli\Command;
 use MwCli\Formatter;
 use MwCli\Runner;
+use stdClass;
 
 /**
  * Lists recent changes.
@@ -95,8 +96,8 @@ class RecentChanges extends Command {
 		$formatter = $this->services()->getTitleFormatter();
 		$utc = new DateTimeZone( 'UTC' );
 		$rows = [];
-		$res = $query->fetchResultSet();
-		while ( $row = $res->fetchObject() ) {
+		foreach ( $query->fetchResultSet() as $row ) {
+			/** @var stdClass $row */
 			$hidden = (int)$row->rc_deleted;
 			$hideAction = $row->rc_log_type !== null && $hidden & self::DELETED_ACTION;
 			$rows[] = [

@@ -18,7 +18,9 @@ class FeatureContext implements Context {
 	public function resetWiki(): void {
 		$this->exec( 'reset-wiki' );
 		if ( $this->code !== 0 ) {
-			throw new RuntimeException( "Could not reset the test wiki. Is it running (docker compose up -d)?\n$this->stderr" );
+			throw new RuntimeException(
+				"Could not reset the test wiki. Is it running (docker compose up -d)?\n$this->stderr"
+			);
 		}
 	}
 
@@ -33,7 +35,8 @@ class FeatureContext implements Context {
 	 * @Given a file :path with:
 	 */
 	public function aFileWith( string $path, PyStringNode $content ): void {
-		$this->exec( 'mkdir -p "$(dirname ' . escapeshellarg( $path ) . ')" && cat > ' . escapeshellarg( $path ), $content->getRaw() . "\n" );
+		$file = escapeshellarg( $path );
+		$this->exec( "mkdir -p \"$(dirname $file)\" && cat > $file", $content->getRaw() . "\n" );
 		if ( $this->code !== 0 ) {
 			throw new RuntimeException( "Could not write $path:\n$this->stderr" );
 		}
@@ -45,7 +48,9 @@ class FeatureContext implements Context {
 	public function iRun( string $command ): void {
 		$this->exec( $command );
 		if ( $this->code !== 0 ) {
-			throw new RuntimeException( "'$command' failed with code $this->code.\nSTDOUT:\n$this->stdout\nSTDERR:\n$this->stderr" );
+			throw new RuntimeException(
+				"'$command' failed with code $this->code.\nSTDOUT:\n$this->stdout\nSTDERR:\n$this->stderr"
+			);
 		}
 	}
 

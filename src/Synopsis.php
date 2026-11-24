@@ -7,7 +7,15 @@ namespace MwCli;
  * (`<arg>`, `[<arg>...]`, `--key=<value>`, `[--flag]`, `[--no-flag]`, `[--<field>=<value>]`) and the text for help.
  * Lines from the first @-tag on (e.g. @param) are left out.
  *
- * @phpstan-type SynopsisData array{summary: string, text: string, synopsis: string, positional: list<array{name: string, optional: bool, repeating: bool}>, assoc: array<string,bool>, valued: list<string>, generic: bool}
+ * @phpstan-type SynopsisData array{
+ *     summary: string,
+ *     text: string,
+ *     synopsis: string,
+ *     positional: list<array{name: string, optional: bool, repeating: bool}>,
+ *     assoc: array<string,bool>,
+ *     valued: list<string>,
+ *     generic: bool
+ * }
  */
 class Synopsis {
 	/**
@@ -33,13 +41,18 @@ class Synopsis {
 		];
 		$tokens = [];
 		foreach ( $lines as $line ) {
-			if ( !preg_match( '/^(\[)?(<([\w-]+)>|--([\w-]+)(=<[\w-]+>)?|--<[\w-]+>=<[\w-]+>)(\.\.\.)?(\])?$/', trim( $line ), $m ) ) {
+			$token = '/^(\[)?(<([\w-]+)>|--([\w-]+)(=<[\w-]+>)?|--<[\w-]+>=<[\w-]+>)(\.\.\.)?(\])?$/';
+			if ( !preg_match( $token, trim( $line ), $m ) ) {
 				continue;
 			}
 			$tokens[] = trim( $line );
 			$optional = $m[1] === '[';
 			if ( ( $m[3] ?? '' ) !== '' ) {
-				$out['positional'][] = [ 'name' => $m[3], 'optional' => $optional, 'repeating' => ( $m[6] ?? '' ) !== '' ];
+				$out['positional'][] = [
+					'name' => $m[3],
+					'optional' => $optional,
+					'repeating' => ( $m[6] ?? '' ) !== '',
+				];
 			} elseif ( ( $m[4] ?? '' ) !== '' ) {
 				// Runner::parseArgv() reads --no-x as x=false.
 				$out['assoc'][str_starts_with( $m[4], 'no-' ) ? substr( $m[4], 3 ) : $m[4]] = !$optional;
@@ -66,7 +79,8 @@ class Synopsis {
 			? PHP_INT_MAX
 			: count( $synopsis['positional'] );
 		if ( count( $args ) < $required ) {
-			$missing = array_column( array_slice( $synopsis['positional'], count( $args ), $required - count( $args ) ), 'name' );
+			$missing = array_slice( $synopsis['positional'], count( $args ), $required - count( $args ) );
+			$missing = array_column( $missing, 'name' );
 			return 'Missing argument: ' . implode( ', ', $missing ) . '.';
 		}
 		if ( count( $args ) > $max ) {

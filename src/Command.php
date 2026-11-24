@@ -83,7 +83,9 @@ abstract class Command {
 	/**
 	 * A condition for titles in this DB key field that start with the prefix, written as on a page.
 	 */
-	protected function titlePrefix( IReadableDatabase $db, string $field, string $prefix, int $namespace ): IExpression {
+	protected function titlePrefix(
+		IReadableDatabase $db, string $field, string $prefix, int $namespace
+	): IExpression {
 		$prefix = strtr( $prefix, ' ', '_' );
 		if ( $this->services()->getNamespaceInfo()->isCapitalized( $namespace ) ) {
 			$prefix = $this->services()->getContentLanguage()->ucfirst( $prefix );

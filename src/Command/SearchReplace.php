@@ -103,7 +103,8 @@ class SearchReplace extends Command {
 			$total += $count;
 			if ( $dryRun ) {
 				$diff = new Diff( explode( "\n", $old ), explode( "\n", $new ) );
-				Runner::line( "--- $name\n+++ $name\n" . rtrim( ( new UnifiedDiffFormatter() )->format( $diff ), "\n" ) );
+				$lines = rtrim( ( new UnifiedDiffFormatter() )->format( $diff ), "\n" );
+				Runner::line( "--- $name\n+++ $name\n$lines" );
 			}
 		}
 
@@ -174,7 +175,10 @@ class SearchReplace extends Command {
 		if ( isset( $assoc_args['category'] ) ) {
 			$category = Category::newFromTitle( $this->category( (string)$assoc_args['category'] ) );
 			$members = iterator_to_array( $category->getMembers(), false );
-			return array_filter( $members, static fn ( $member ) => $namespace === null || $member->inNamespace( $namespace ) );
+			return array_filter(
+				$members,
+				static fn ( $member ) => $namespace === null || $member->inNamespace( $namespace )
+			);
 		}
 		$namespaces = $namespace ?? $this->services()->getNamespaceInfo()->getContentNamespaces();
 		$db = $this->services()->getConnectionProvider()->getReplicaDatabase();

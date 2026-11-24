@@ -15,7 +15,7 @@ composer install                      # dev deps only (PHPUnit, Behat); runtime 
 composer test                         # unit + functional
 vendor/bin/phpunit                    # unit tests
 vendor/bin/phpunit --filter ConfigTest::testUnknownAliasFails   # single unit test
-composer lint                         # php -l + phpcs (mediawiki/mediawiki-codesniffer)
+composer lint                         # php -l + phpcs (mediawiki/mediawiki-codesniffer); warnings fail too
 composer phpstan                      # level 8 on src/ and bin/mw, once against MediaWiki 1.43 and once against 1.46
 
 docker compose up -d --build --wait  # test wiki: MediaWiki 1.43 + SQLite + sshd

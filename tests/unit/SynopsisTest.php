@@ -40,7 +40,10 @@ class SynopsisTest extends TestCase {
 	public function testParse(): void {
 		$s = Synopsis::parse( self::DOC );
 		$this->assertSame( 'Gets a page.', $s['summary'] );
-		$this->assertSame( '<title> [<more>...] --summary=<summary> [--format=<format>] [--yes] [--no-redirect]', $s['synopsis'] );
+		$this->assertSame(
+			'<title> [<more>...] --summary=<summary> [--format=<format>] [--yes] [--no-redirect]',
+			$s['synopsis']
+		);
 		$this->assertSame( [ 'summary' => true, 'format' => false, 'yes' => false, 'redirect' => false ], $s['assoc'] );
 		$this->assertSame( [
 			[ 'name' => 'title', 'optional' => false, 'repeating' => false ],
@@ -56,9 +59,18 @@ class SynopsisTest extends TestCase {
 		$this->assertNull( Synopsis::validate( $s, [ 'A', 'B', 'C' ], [ 'summary' => 'x' ] ) );
 		$this->assertSame( 'Missing argument: title.', Synopsis::validate( $s, [], [ 'summary' => 'x' ] ) );
 		$this->assertSame( 'Missing --summary.', Synopsis::validate( $s, [ 'A' ], [] ) );
-		$this->assertSame( '--format needs a value.', Synopsis::validate( $s, [ 'A' ], [ 'summary' => 'x', 'format' => true ] ) );
-		$this->assertSame( "--yes doesn't take a value.", Synopsis::validate( $s, [ 'A' ], [ 'summary' => 'x', 'yes' => 'false' ] ) );
-		$this->assertSame( 'Unknown parameter: --nope.', Synopsis::validate( $s, [ 'A' ], [ 'summary' => 'x', 'nope' => true ] ) );
+		$this->assertSame(
+			'--format needs a value.',
+			Synopsis::validate( $s, [ 'A' ], [ 'summary' => 'x', 'format' => true ] )
+		);
+		$this->assertSame(
+			"--yes doesn't take a value.",
+			Synopsis::validate( $s, [ 'A' ], [ 'summary' => 'x', 'yes' => 'false' ] )
+		);
+		$this->assertSame(
+			'Unknown parameter: --nope.',
+			Synopsis::validate( $s, [ 'A' ], [ 'summary' => 'x', 'nope' => true ] )
+		);
 	}
 
 	public function testTooManyArgsAndGenericOptions(): void {

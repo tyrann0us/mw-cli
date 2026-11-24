@@ -75,6 +75,7 @@ class Page extends Command {
 	public function put( array $args, array $assoc_args ): void {
 		$title = $this->title( $args[0] );
 		$file = $args[1] ?? null;
+		// phpcs:ignore Generic.PHP.NoSilencedErrors.Discouraged -- Runner::error() reports it.
 		$text = $file === null ? stream_get_contents( STDIN ) : @file_get_contents( $file );
 		if ( $text === false ) {
 			Runner::error( "Can't read '$file'." );
@@ -160,13 +161,15 @@ class Page extends Command {
 			$query->whereNamespace( $namespace );
 		}
 		if ( isset( $assoc_args['prefix'] ) ) {
-			$query->where( $this->titlePrefix( $db, 'page_title', (string)$assoc_args['prefix'], $namespace ?? NS_MAIN ) );
+			$prefix = (string)$assoc_args['prefix'];
+			$query->where( $this->titlePrefix( $db, 'page_title', $prefix, $namespace ?? NS_MAIN ) );
 		}
 		if ( isset( $assoc_args['category'] ) ) {
 			// getMembers() hides the categorylinks schema change after 1.43. It only collects the IDs,
 			// so the query above still sorts, filters and limits in the database.
 			$ids = [];
-			foreach ( Category::newFromTitle( $this->category( (string)$assoc_args['category'] ) )->getMembers() as $member ) {
+			$category = Category::newFromTitle( $this->category( (string)$assoc_args['category'] ) );
+			foreach ( $category->getMembers() as $member ) {
 				$ids[] = $member->getArticleID();
 			}
 			// No page has ID 0, and an empty list would be invalid SQL.
@@ -258,12 +261,15 @@ class Page extends Command {
 	 */
 	public function delete( array $args, array $assoc_args ): void {
 		$titles = $this->existing( $args );
-		$question = count( $titles ) === 1 ? "Delete '{$titles[0]->getPrefixedText()}'?" : 'Delete ' . count( $titles ) . ' pages?';
+		$question = count( $titles ) === 1
+			? "Delete '{$titles[0]->getPrefixedText()}'?"
+			: 'Delete ' . count( $titles ) . ' pages?';
 		Runner::confirm( $question, $assoc_args );
 		$performer = $this->performer();
 		$factory = $this->services()->getDeletePageFactory();
 		foreach ( $titles as $title ) {
-			$this->check( $factory->newDeletePage( $title->toPageIdentity(), $performer )->deleteUnsafe( (string)( $assoc_args['reason'] ?? '' ) ) );
+			$delete = $factory->newDeletePage( $title->toPageIdentity(), $performer );
+			$this->check( $delete->deleteUnsafe( (string)( $assoc_args['reason'] ?? '' ) ) );
 			Runner::success( "Deleted '{$title->getPrefixedText()}'." );
 		}
 	}
@@ -373,7 +379,11 @@ class Page extends Command {
 		$this->check( $page->doUpdateRestrictions(
 			$limit, $expiries, $cascade, (string)( $assoc_args['reason'] ?? '' ), $this->performer()
 		) );
-		$now = array_map( static fn ( $action, $level ) => "$action=" . ( $level ?: 'all' ), array_keys( $limit ), $limit );
+		$now = array_map(
+			static fn ( $action, $level ) => "$action=" . ( $level ?: 'all' ),
+			array_keys( $limit ),
+			$limit
+		);
 		Runner::success( "Protected '{$title->getPrefixedText()}': " . implode( ', ', $now ) . '.' );
 	}
 

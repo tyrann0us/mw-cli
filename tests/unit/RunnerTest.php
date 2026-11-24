@@ -20,7 +20,9 @@ class RunnerTest extends TestCase {
 	}
 
 	public function testParseArgv(): void {
-		[ $args, $assoc ] = Runner::parseArgv( [ 'page', 'get', 'Main Page', '--format=json', '--yes', '--no-color', '--', '--literal' ] );
+		[ $args, $assoc ] = Runner::parseArgv(
+			[ 'page', 'get', 'Main Page', '--format=json', '--yes', '--no-color', '--', '--literal' ]
+		);
 		$this->assertSame( [ 'page', 'get', 'Main Page', '--literal' ], $args );
 		$this->assertSame( [ 'format' => 'json', 'yes' => true, 'color' => false ], $assoc );
 	}
@@ -51,17 +53,24 @@ class RunnerTest extends TestCase {
 			$cli->resolve( [ 'page', 'category', 'list', 'Main Page' ] )
 		);
 		// The longest run of words that names a subcommand wins; the rest are args.
-		$this->assertSame( [ 'MwCli\Command\Page', 'list', [ 'category' ] ], $cli->resolve( [ 'page', 'list', 'category' ] ) );
+		$this->assertSame(
+			[ 'MwCli\Command\Page', 'list', [ 'category' ] ],
+			$cli->resolve( [ 'page', 'list', 'category' ] )
+		);
 		$this->assertSame( [ 'MwCli\Command\Page', null, [ 'category' ] ], $cli->resolve( [ 'page', 'category' ] ) );
 		$this->assertSame( [ 'MwCli\Command\Page', null, [] ], $cli->resolve( [ 'page' ] ) );
 		$this->assertSame( 'category list', Runner::subcommandName( 'categoryList' ) );
-		$this->assertSame( 'mw page category list <title> [--limit=<n>] [--format=<format>] [--fields=<fields>] [--field=<field>]', $cli->usage( 'MwCli\Command\Page', 'categoryList' ) );
+		$this->assertSame(
+			'mw page category list <title> [--limit=<n>] [--format=<format>] [--fields=<fields>] [--field=<field>]',
+			$cli->usage( 'MwCli\Command\Page', 'categoryList' )
+		);
 	}
 
 	public function testCommandWordsSkipArgs(): void {
-		$this->assertSame( [ 'page', 'category', 'list' ], ( new Runner( [ 'page', 'category', 'list', 'Foo' ], $this->dir, null ) )->commandWords() );
-		$this->assertSame( [ 'page', 'category' ], ( new Runner( [ 'page', 'category' ], $this->dir, null ) )->commandWords() );
-		$this->assertSame( [ 'maint' ], ( new Runner( [ 'maint', 'edit' ], $this->dir, null ) )->commandWords() );
+		$words = static fn ( array $argv ) => ( new Runner( $argv, sys_get_temp_dir(), null ) )->commandWords();
+		$this->assertSame( [ 'page', 'category', 'list' ], $words( [ 'page', 'category', 'list', 'Foo' ] ) );
+		$this->assertSame( [ 'page', 'category' ], $words( [ 'page', 'category' ] ) );
+		$this->assertSame( [ 'maint' ], $words( [ 'maint', 'edit' ] ) );
 		$cli = new Runner( [ 'page', 'category', 'list', 'Foo', '--format=json' ], $this->dir, null );
 		$this->assertSame( [ 'Foo', '--format=json' ], $cli->rawArgs() );
 	}
@@ -69,9 +78,12 @@ class RunnerTest extends TestCase {
 	public function testUnknownNestedSubcommandFails(): void {
 		$cli = new Runner( [], $this->dir, null );
 		foreach ( [
-			"'nope' is not a registered subcommand of 'page category'. See 'mw help page category'." => [ 'page', 'category', 'nope' ],
-			"'category-list' is not a registered subcommand of 'page'. See 'mw help page'." => [ 'page', 'category-list' ],
-			"'categoryList' is not a registered subcommand of 'page'. See 'mw help page'." => [ 'page', 'categoryList' ],
+			"'nope' is not a registered subcommand of 'page category'. See 'mw help page category'."
+				=> [ 'page', 'category', 'nope' ],
+			"'category-list' is not a registered subcommand of 'page'. See 'mw help page'."
+				=> [ 'page', 'category-list' ],
+			"'categoryList' is not a registered subcommand of 'page'. See 'mw help page'."
+				=> [ 'page', 'categoryList' ],
 		] as $message => $args ) {
 			try {
 				$cli->resolve( $args );
@@ -90,7 +102,10 @@ class RunnerTest extends TestCase {
 		( new Help( $cli ) )->__invoke( [ 'page' ], [] );
 		$out = (string)ob_get_clean();
 		$this->assertStringContainsString( "NAME\n\n  mw page category list <title>", $out );
-		$this->assertStringContainsString( "usage: mw page category <subcommand>\n\nSubcommands:\n  list  Lists the categories of a page.\n", $out );
+		$this->assertStringContainsString(
+			"usage: mw page category <subcommand>\n\nSubcommands:\n  list  Lists the categories of a page.\n",
+			$out
+		);
 		$this->assertMatchesRegularExpression( '/^  category list +Lists the categories of a page\.$/m', $out );
 	}
 
@@ -118,7 +133,8 @@ class RunnerTest extends TestCase {
 	}
 
 	public function testRawArgsKeepRepeatedOptionsAndDropGlobalFlags(): void {
-		$cli = new Runner( [ '--quiet', 'maint', 'x', '--skip=a', '--user=Bot', '--no-quiet', '--skip=b', '--', '--user=Admin' ], $this->dir, null );
+		$argv = [ '--quiet', 'maint', 'x', '--skip=a', '--user=Bot', '--no-quiet', '--skip=b', '--', '--user=Admin' ];
+		$cli = new Runner( $argv, $this->dir, null );
 		$this->assertSame( [ 'x', '--skip=a', '--skip=b', '--user=Admin' ], $cli->rawArgs() );
 	}
 
@@ -127,7 +143,8 @@ class RunnerTest extends TestCase {
 	}
 
 	public function testSshCommandForwardsArgsAndPath(): void {
-		$cli = new Runner( [ 'page', 'get', "It's", '--ssh=deploy@wiki.example.org:2222/var/www/w' ], $this->dir, null );
+		$argv = [ 'page', 'get', "It's", '--ssh=deploy@wiki.example.org:2222/var/www/w' ];
+		$cli = new Runner( $argv, $this->dir, null );
 		$this->assertSame(
 			"ssh -T -o RemoteCommand=none -p 2222 -- 'deploy@wiki.example.org' "
 				. escapeshellarg( "'mw' '--path=/var/www/w' 'page' 'get' 'It'\\''s'" ),
@@ -136,10 +153,14 @@ class RunnerTest extends TestCase {
 	}
 
 	public function testSshAliasAppliesRemotePathAndUser(): void {
-		file_put_contents( "$this->dir/project/mw.ini", "path = w\n[@prod]\nssh = wiki.example.org\npath = /srv/w\nuser = Bot\n" );
+		file_put_contents(
+			"$this->dir/project/mw.ini",
+			"path = w\n[@prod]\nssh = wiki.example.org\npath = /srv/w\nuser = Bot\n"
+		);
 		$cli = new Runner( [ '@prod', 'cli', 'version' ], "$this->dir/project/sub", null );
 		$this->assertSame(
-			"ssh -T -o RemoteCommand=none -- 'wiki.example.org' " . escapeshellarg( "'mw' '--user=Bot' '--path=/srv/w' 'cli' 'version'" ),
+			"ssh -T -o RemoteCommand=none -- 'wiki.example.org' "
+				. escapeshellarg( "'mw' '--user=Bot' '--path=/srv/w' 'cli' 'version'" ),
 			(string)$cli->sshCommand( false )
 		);
 	}
@@ -147,7 +168,10 @@ class RunnerTest extends TestCase {
 	public function testCommandLineFlagsWinOverAlias(): void {
 		file_put_contents( "$this->dir/project/mw.ini", "[@prod]\nssh = wiki.example.org\npath = /srv/w\n" );
 		$cli = new Runner( [ '@prod', '--path=/other', 'cli', 'version' ], "$this->dir/project", null );
-		$this->assertStringContainsString( escapeshellarg( "'mw' '--path=/other' 'cli' 'version'" ), (string)$cli->sshCommand( false ) );
+		$this->assertStringContainsString(
+			escapeshellarg( "'mw' '--path=/other' 'cli' 'version'" ),
+			(string)$cli->sshCommand( false )
+		);
 	}
 
 	public function testSshOnATerminalHidesTheClosedNotice(): void {
@@ -197,7 +221,10 @@ class RunnerTest extends TestCase {
 	}
 
 	public function testTokensAfterDoubleDashDoNotOverrideAlias(): void {
-		file_put_contents( "$this->dir/project/mw.ini", "[@prod]\nssh = wiki.example.org\npath = /srv/w\nuser = Bot\n" );
+		file_put_contents(
+			"$this->dir/project/mw.ini",
+			"[@prod]\nssh = wiki.example.org\npath = /srv/w\nuser = Bot\n"
+		);
 		$cli = new Runner( [ '@prod', 'maint', 'edit', '--', '--user=Admin' ], "$this->dir/project", null );
 		$this->assertStringContainsString(
 			escapeshellarg( "'mw' '--user=Bot' '--path=/srv/w' 'maint' 'edit' '--' '--user=Admin'" ),

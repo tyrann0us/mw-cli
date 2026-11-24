@@ -28,6 +28,7 @@ class Config {
 
 		$config = [];
 		foreach ( $files as $file ) {
+			// phpcs:ignore Generic.PHP.NoSilencedErrors.Discouraged -- Runner::error() reports it.
 			$ini = @parse_ini_file( $file, true, INI_SCANNER_TYPED );
 			if ( $ini === false ) {
 				Runner::error( "Can't parse config file $file." );
@@ -85,7 +86,8 @@ class Config {
 		foreach ( array_replace( $global, $flags ) as $key => $value ) {
 			if ( $key === 'quiet' ) {
 				$out[$key] = is_string( $value )
-					? filter_var( $value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE ) ?? Runner::error( '--quiet must be true or false.' )
+					? filter_var( $value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE )
+						?? Runner::error( '--quiet must be true or false.' )
 					: (bool)$value;
 			} elseif ( is_bool( $value ) || $value === '' || !is_scalar( $value ) ) {
 				Runner::error( "--$key needs a value." );

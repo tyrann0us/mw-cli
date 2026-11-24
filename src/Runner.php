@@ -116,7 +116,10 @@ class Runner {
 		$end = array_search( '--', $this->tokens, true );
 		$end = is_int( $end ) ? $end : count( $this->tokens );
 		$own = array_slice( $this->tokens, 0, $end );
-		$forward = [ ...preg_grep( '/^--ssh(=|$)/', $own, PREG_GREP_INVERT ) ?: [], ...array_slice( $this->tokens, $end ) ];
+		$forward = [
+			...preg_grep( '/^--ssh(=|$)/', $own, PREG_GREP_INVERT ) ?: [],
+			...array_slice( $this->tokens, $end ),
+		];
 		foreach ( [ 'path' => $path, 'user' => $this->flag( 'remote-user' ) ] as $key => $value ) {
 			if ( $value !== null && !preg_grep( "/^--$key(=|$)/", $own ) ) {
 				array_unshift( $forward, "--$key=$value" );
@@ -159,13 +162,16 @@ class Runner {
 		} else {
 			for ( $path = $this->cwd; !self::isWiki( $path ); $path = dirname( $path ) ) {
 				if ( dirname( $path ) === $path ) {
-					self::error( 'This does not seem to be a MediaWiki installation. Pass --path=<path> or run mw inside one.' );
+					self::error(
+						'This does not seem to be a MediaWiki installation. Pass --path=<path> or run mw inside one.'
+					);
 				}
 			}
 		}
 		$path = realpath( $path ) ?: $path;
 
-		preg_match( "/define\( 'MW_VERSION', '([^']+)'/", (string)file_get_contents( "$path/includes/Defines.php" ), $m );
+		$defines = (string)file_get_contents( "$path/includes/Defines.php" );
+		preg_match( "/define\( 'MW_VERSION', '([^']+)'/", $defines, $m );
 		if ( version_compare( $m[1] ?? '0', '1.43', '<' ) ) {
 			self::error( 'mw needs MediaWiki 1.43 or later, found ' . ( $m[1] ?? 'unknown' ) . '.' );
 		}

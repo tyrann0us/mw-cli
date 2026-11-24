@@ -4,6 +4,7 @@ namespace MwCli\Command;
 
 use MwCli\Command;
 use MwCli\Formatter;
+use stdClass;
 
 /**
  * Lists categories.
@@ -61,8 +62,8 @@ class Category extends Command {
 
 		$formatter = $this->services()->getTitleFormatter();
 		$rows = [];
-		$res = $query->fetchResultSet();
-		while ( $row = $res->fetchObject() ) {
+		foreach ( $query->fetchResultSet() as $row ) {
+			/** @var stdClass $row */
 			// cat_pages counts all members, like Category::getMemberCount().
 			$members = (int)$row->cat_pages;
 			$subcats = (int)$row->cat_subcats;

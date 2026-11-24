@@ -12,7 +12,6 @@
 		<!-- Behat step annotations. -->
 		<exclude-pattern>features/</exclude-pattern>
 	</rule>
-	<config name="ignore_warnings_on_exit" value="1" />
 	<file>bin/mw</file>
 	<file>src</file>
 	<file>tests</file>

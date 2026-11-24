@@ -27,7 +27,8 @@ class Ask extends Command {
 	 * : The query, e.g. '[[Category:Building]]|?Street'.
 	 *
 	 * [--limit=<n>]
-	 * : Maximum number of results, up to Semantic MediaWiki's maximum. Defaults to its default limit. A warning says when there are more.
+	 * : Maximum number of results, up to Semantic MediaWiki's maximum. Defaults to its default limit.
+	 * A warning says when there are more.
 	 *
 	 * [--format=<format>]
 	 * : table, json, csv, yaml, ids or count.
