@@ -4,6 +4,7 @@ parameters:
   paths:
     - bin/mw
     - src/
+    - tools/
   treatPhpDocTypesAsCertain: false
   # Semantic MediaWiki source for `mw ask`, installed as a dev dependency for analysis only.
   scanDirectories:
