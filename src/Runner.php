@@ -238,12 +238,21 @@ class Runner
     {
         try {
             [$command, $method, $args] = $this->resolve($this->args);
-            if ($method === null || !empty($this->assoc['help'])) {
+            if (!empty($this->assoc['help'])) {
                 (new Command\Help($this))->__invoke($this->commandWords(), []);
                 return 0;
             }
+            if ($method === null) {
+                (new Command\Help($this))->usage($this->commandWords());
+                return 0;
+            }
             $this->validate();
-            (new $command($this))->$method($args, $this->assoc);
+            $instance = new $command($this);
+            if ($command::NEEDS_WIKI && $this->flag('user') !== null) {
+                // An unknown --user fails every command, not only writes.
+                $instance->performer();
+            }
+            $instance->$method($args, $this->assoc);
             return 0;
         } catch (ExitException $exception) {
             return self::report($exception);
@@ -322,7 +331,10 @@ class Runner
         $name = $args[0] ?? 'help';
         $class = $this->commands[$name] ?? null;
         if ($class === null) {
-            self::error("'$name' is not a registered mw command. See 'mw help'.");
+            self::error(
+                "'$name' is not a registered mw command. See 'mw help' for available commands."
+                    . self::suggestion($name, array_keys($this->commands))
+            );
         }
         if (method_exists($class, '__invoke')) {
             return [$class, '__invoke', array_slice($args, 1)];
@@ -347,7 +359,9 @@ class Runner
             if (!$matching) {
                 $parent = implode(' ', [$name, ...$group]);
                 self::error(
-                    "'$word' is not a registered subcommand of '$parent'. See 'mw help $parent'."
+                    "'$word' is not a registered subcommand of '$parent'. "
+                        . "See 'mw help $parent' for available subcommands."
+                        . self::suggestion($word, self::nextWords(array_keys($methods), $group))
                 );
             }
             $group[] = $word;
@@ -382,6 +396,43 @@ class Runner
         $doc = (new ReflectionMethod($class, $method))->getDocComment() ?: '';
         $synopsis = Synopsis::parse($doc)['synopsis'];
         return trim("mw $name$sub $synopsis");
+    }
+
+    /**
+     * The words that can follow $group in these subcommand names.
+     *
+     * @param string[] $subcommands
+     * @param string[] $group
+     * @return string[]
+     */
+    private static function nextWords(array $subcommands, array $group): array
+    {
+        $before = $group ? implode(' ', $group) . ' ' : '';
+        $next = [];
+        foreach ($subcommands as $subcommand) {
+            if (str_starts_with($subcommand, $before)) {
+                $next[] = explode(' ', substr($subcommand, strlen($before)))[0];
+            }
+        }
+        return $next;
+    }
+
+    /**
+     * A "Did you mean" line for the closest name within two edits.
+     *
+     * @param string[] $names
+     */
+    private static function suggestion(string $word, array $names): string
+    {
+        $best = null;
+        $distance = 3;
+        foreach ($names as $name) {
+            $edits = levenshtein($word, $name);
+            if ($edits < $distance) {
+                [$best, $distance] = [$name, $edits];
+            }
+        }
+        return $best === null ? '' : "\nDid you mean '$best'?";
     }
 
     /**

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MwCli;
 
+use MediaWiki\Context\RequestContext;
 use MediaWiki\Maintenance\Maintenance;
 use MediaWiki\Settings\SettingsBuilder;
 
@@ -43,6 +44,9 @@ class MwMaintenance extends Maintenance
 
     public function execute(): bool
     {
+        // Messages from MediaWiki (e.g. a failed move) in English, like mw's own. The content
+        // language, which parsing and namespace names use, stays as configured.
+        RequestContext::getMain()->setLanguage('en');
         // Returning false (instead of exiting) lets MediaWiki commit and run deferred updates.
         self::$code = self::$cli->run();
         return self::$code === 0;

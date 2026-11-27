@@ -7,6 +7,13 @@ Feature: Run mw, get help and use global flags
       Runs a MediaWiki maintenance script.
       """
 
+  Scenario: Help opens in a pager on a terminal
+    When I run "script -qec 'PAGER=rev mw help cli version' /dev/null"
+    Then STDOUT should contain:
+      """
+      EMAN
+      """
+
   Scenario: Help for a subcommand shows its usage
     When I run "mw cli version --help"
     Then STDOUT should contain:
@@ -16,9 +23,17 @@ Feature: Run mw, get help and use global flags
 
   Scenario: A command group without subcommand lists its subcommands
     When I run "mw cli"
+    Then STDOUT should be:
+      """
+      usage: mw cli info [--format=<format>] [--fields=<fields>] [--field=<field>]
+         or: mw cli version
+
+      See 'mw help cli <command>' for more information on a specific command.
+      """
+    When I run "mw help cli"
     Then STDOUT should contain:
       """
-      version  Prints the mw version.
+        version  Prints the mw version.
       """
 
   Scenario: Subcommands of several words are typed and shown as separate words
@@ -33,14 +48,27 @@ Feature: Run mw, get help and use global flags
       Lists the categories of a page.
       """
     When I run "mw page category"
-    Then STDOUT should be:
+    Then STDOUT should contain:
       """
-      usage: mw page category <subcommand>
+      usage: mw page category list <title>
+      """
+    When I run "mw help page category"
+    Then STDOUT should contain:
+      """
+      SYNOPSIS
 
-      Subcommands:
+        mw page category <command>
+
+      SUBCOMMANDS
+
         list  Lists the categories of a page.
       """
     When I run "mw page"
+    Then STDOUT should contain:
+      """
+      usage: mw page category list <title>
+      """
+    When I run "mw help page"
     Then STDOUT should contain:
       """
         category list  Lists the categories of a page.
@@ -49,13 +77,13 @@ Feature: Run mw, get help and use global flags
     Then the return code should be 1
     And STDERR should contain:
       """
-      Error: 'nope' is not a registered subcommand of 'page category'. See 'mw help page category'.
+      Error: 'nope' is not a registered subcommand of 'page category'. See 'mw help page category' for available subcommands.
       """
     When I try "mw page category-list Main_Page"
     Then the return code should be 1
     And STDERR should contain:
       """
-      Error: 'category-list' is not a registered subcommand of 'page'. See 'mw help page'.
+      Error: 'category-list' is not a registered subcommand of 'page'. See 'mw help page' for available subcommands.
       """
 
   Scenario: Show the mw version and environment
@@ -80,13 +108,25 @@ Feature: Run mw, get help and use global flags
     Then the return code should be 1
     And STDERR should contain:
       """
-      Error: 'nope' is not a registered mw command. See 'mw help'.
+      Error: 'nope' is not a registered mw command. See 'mw help' for available commands.
+      """
+    When I try "mw pgae list"
+    Then the return code should be 1
+    And STDERR should contain:
+      """
+      See 'mw help' for available commands.
+      Did you mean 'page'?
+      """
+    When I try "mw page lsit"
+    Then STDERR should contain:
+      """
+      Did you mean 'list'?
       """
     When I try "mw cli nope"
     Then the return code should be 1
     And STDERR should contain:
       """
-      Error: 'nope' is not a registered subcommand of 'cli'. See 'mw help cli'.
+      Error: 'nope' is not a registered subcommand of 'cli'. See 'mw help cli' for available subcommands.
       """
     When I try "mw cli version --nope"
     Then the return code should be 1
@@ -111,6 +151,20 @@ Feature: Run mw, get help and use global flags
     Then STDOUT should contain:
       """
       Total pages       : 1
+      """
+
+  Scenario: Maintenance script errors use mw's wording
+    When I try "mw maint noSuchScript"
+    Then the return code should be 1
+    And STDERR should contain:
+      """
+      Error: Unknown maintenance script 'noSuchScript'.
+      """
+    When I try "mw maint showSiteStats --nope"
+    Then the return code should be 1
+    And STDERR should contain:
+      """
+      Error: Unknown parameter: --nope.
       """
 
   Scenario: Aliases from mw.ini

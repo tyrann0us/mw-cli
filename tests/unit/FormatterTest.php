@@ -33,8 +33,8 @@ class FormatterTest extends TestCase
             ],
             'yaml' => [
                 [ 'format' => 'yaml' ],
-                "---\n-\n  id: 1\n  title: \"Main Page\"\n"
-                    . "-\n  id: 2\n  title: \"Foo, \\\"bar\\\"\"\n",
+                "---\n-\n  id: 1\n  title: Main Page\n"
+                    . "-\n  id: 2\n  title: Foo, \"bar\"\n",
             ],
             'ids' => [ [ 'format' => 'ids' ], "1 2\n" ],
             'count' => [ [ 'format' => 'count' ], "2\n" ],
@@ -43,6 +43,10 @@ class FormatterTest extends TestCase
                 "title\tns\nMain Page\t0\nFoo, \"bar\"\t4\n",
             ],
             'field' => [ [ 'field' => 'ns' ], "0\n4\n" ],
+            'field as json' => [
+                [ 'field' => 'title', 'format' => 'json' ],
+                "[\"Main Page\",\"Foo, \\\"bar\\\"\"]\n",
+            ],
         ];
     }
 
@@ -65,13 +69,29 @@ class FormatterTest extends TestCase
         Formatter::items([['a' => "a\tb\nc\\d"]], [], ['a']);
     }
 
-    public function testItemJsonAndYaml(): void
+    public function testItemJsonCsvAndYaml(): void
     {
         $this->expectOutputString(
-            '{"id":1,"title":"Main Page","ns":0}' . "\n---\nid: 1\ntitle: \"Main Page\"\nns: 0\n"
+            '{"id":1,"title":"Main Page","ns":0}' . "\n"
+                . "Field,Value\nid,1\ntitle,\"Main Page\"\nns,0\n"
+                . "---\nid: 1\ntitle: Main Page\nns: 0\n"
+                . "\"Main Page\"\n"
         );
         Formatter::item(self::ROWS[0], ['format' => 'json']);
+        Formatter::item(self::ROWS[0], ['format' => 'csv']);
         Formatter::item(self::ROWS[0], ['format' => 'yaml']);
+        Formatter::item(self::ROWS[0], ['field' => 'title', 'format' => 'json']);
+    }
+
+    public function testYamlQuotesOnlyWhereNeeded(): void
+    {
+        $this->expectOutputString(
+            "---\na: \"true\"\nb: \"12\"\nc: \"\"\nd: \"x: y\"\ne: x y\nf: 3\n"
+        );
+        Formatter::item(
+            ['a' => 'true', 'b' => '12', 'c' => '', 'd' => 'x: y', 'e' => 'x y', 'f' => 3],
+            ['format' => 'yaml']
+        );
     }
 
     public function testScalarsAreStringified(): void

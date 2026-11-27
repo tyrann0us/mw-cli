@@ -76,7 +76,7 @@
         "phpcs:fix": "@php ./vendor/bin/phpcbf",
         "test": [
             "phpunit",
-            "behat"
+            "behat --no-interaction"
         ],
         "phpstan": [
             "phpstan analyse --memory-limit=1G",

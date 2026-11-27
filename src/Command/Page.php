@@ -21,6 +21,8 @@ use Wikimedia\ParamValidator\TypeDef\ExpiryDef;
  */
 class Page extends Command
 {
+    public const GROUPS = ['category' => 'Lists the categories of a page.'];
+
     /**
      * Prints the wikitext of a page.
      *
@@ -64,6 +66,9 @@ class Page extends Command
      *
      * [--create-only]
      * : Fail if the page exists.
+     *
+     * [--porcelain]
+     * : Print only the page ID, for scripts.
      *
      * [--no-create]
      * : Fail if the page doesn't exist.
@@ -109,7 +114,13 @@ class Page extends Command
             Runner::warning("No change: '{$title->getPrefixedText()}' already has this text.");
             return;
         }
-        Runner::success("Saved '{$title->getPrefixedText()}' as revision {$revision->getId()}.");
+        $action = $revision->getParentId() ? 'Updated' : 'Created';
+        if (!empty($assocArgs['porcelain'])) {
+            Runner::line((string) $revision->getPageId());
+            return;
+        }
+        $name = $title->getPrefixedText();
+        Runner::success("$action page '$name' (revision {$revision->getId()}).");
     }
 
     /**
@@ -214,7 +225,7 @@ class Page extends Command
      * : table, json, csv, yaml, ids or count.
      *
      * [--fields=<fields>]
-     * : Comma-separated fields to show: title, category. Default: both.
+     * : Comma-separated fields to show: title (the category's title, as in `mw category list`).
      *
      * [--field=<field>]
      * : Prints only the value of this field.
@@ -222,7 +233,7 @@ class Page extends Command
      * ## EXAMPLES
      *
      *     mw page category list Main_Page
-     *     mw page category list Apple --field=category
+     *     mw page category list Apple --field=title
      *
      * @param string[] $args
      * @param array<string,string|bool> $assocArgs
@@ -236,15 +247,15 @@ class Page extends Command
         }
         $categories = [];
         foreach ($this->services()->getWikiPageFactory()->newFromTitle($title)->getCategories() as $category) {
-            $categories[] = $category->getPrefixedText();
+            $categories[] = $category->getText();
         }
         sort($categories);
         $rows = [];
         // getCategories() takes no limit, and a page has few categories.
         foreach (array_slice($categories, 0, $limit) as $category) {
-            $rows[] = ['title' => $title->getPrefixedText(), 'category' => $category];
+            $rows[] = ['title' => $category];
         }
-        Formatter::items($rows, $assocArgs, ['title', 'category']);
+        Formatter::items($rows, $assocArgs, ['title']);
     }
 
     /**
@@ -448,7 +459,7 @@ class Page extends Command
     {
         $title = $this->services()->getTitleFactory()->newFromText($name);
         if ($title === null || !$title->canExist()) {
-            Runner::error("Invalid page title '$name'.");
+            Runner::error("Invalid title '$name'.");
         }
         return $title;
     }
@@ -469,7 +480,10 @@ class Page extends Command
         }
         $missing = array_keys(array_filter($titles, static fn (Title $title): bool => !$title->exists()));
         if ($missing) {
-            Runner::error("Page not found: '" . implode("', '", $missing) . "'.");
+            $list = "'" . implode("', '", $missing) . "'";
+            Runner::error(
+                count($missing) === 1 ? "Page $list doesn't exist." : "Pages $list don't exist."
+            );
         }
         return array_values($titles);
     }

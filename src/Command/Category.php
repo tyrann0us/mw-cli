@@ -33,7 +33,7 @@ class Category extends Command
      *
      * [--fields=<fields>]
      * : Comma-separated fields to show: title, members, pages, subcats, files. members is the
-     * : sum of the other three. Default: title, pages, subcats, files.
+     * sum of the other three. Default: title, pages, subcats, files.
      *
      * [--field=<field>]
      * : Prints only the value of this field.
@@ -65,7 +65,6 @@ class Category extends Command
             $query->andWhere($this->titlePrefix($db, 'cat_title', $prefix, NS_CATEGORY));
         }
 
-        $formatter = $this->services()->getTitleFormatter();
         $rows = [];
         foreach ($query->fetchResultSet() as $row) {
             /** @var stdClass $row */
@@ -74,7 +73,7 @@ class Category extends Command
             $subcats = (int) $row->cat_subcats;
             $files = (int) $row->cat_files;
             $rows[] = [
-                'title' => $formatter->formatTitle(NS_CATEGORY, $row->cat_title),
+                'title' => strtr($row->cat_title, '_', ' '),
                 'members' => $members,
                 // The counts can drift apart, so never below 0, as in Category::getPageCount().
                 'pages' => max(0, $members - $subcats - $files),

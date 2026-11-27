@@ -6,6 +6,7 @@ namespace MwCli\Command;
 
 use MwCli\Command;
 use MwCli\ExitException;
+use MwCli\Runner;
 
 /**
  * Runs a MediaWiki maintenance script.
@@ -47,9 +48,33 @@ class Maint extends Command
         $cmd = array_map('escapeshellarg', [
             PHP_BINARY, $this->cli->wikiPath() . '/maintenance/run.php', ...$this->cli->rawArgs(),
         ]);
-        passthru(implode(' ', $cmd), $code);
+        // stderr goes through rewrite(), stdin and stdout stay the terminal's.
+        $pipes = [];
+        $descriptors = [0 => STDIN, 1 => STDOUT, 2 => ['pipe', 'w']];
+        $process = proc_open(implode(' ', $cmd), $descriptors, $pipes)
+            ?: Runner::error("Can't run maintenance/run.php.");
+        $stderr = $pipes[2];
+        while (!feof($stderr)) {
+            fwrite(STDERR, self::rewrite((string) fgets($stderr)));
+        }
+        fclose($stderr);
+        $code = proc_close($process);
         if ($code !== 0) {
             throw new ExitException('', $code);
         }
+    }
+
+    /**
+     * run.php's errors for an unknown script or option, in mw's wording and without the
+     * server path. Other lines pass unchanged.
+     */
+    private static function rewrite(string $line): string
+    {
+        $patterns = [
+            "/^Script '(.+)' not found \(tried path .*\n/"
+                => "Error: Unknown maintenance script '$1'.\n",
+            '/^ERROR: Unexpected option (--\S+)!\n/' => "Error: Unknown parameter: $1.\n",
+        ];
+        return preg_replace(array_keys($patterns), array_values($patterns), $line) ?? $line;
     }
 }

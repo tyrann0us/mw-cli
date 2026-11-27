@@ -24,8 +24,14 @@ class Formatter
         $fields = self::fields($assoc, $defaultFields, $rows[array_key_first($rows)] ?? null);
         $rows = array_map(static fn (array $row): array => self::pick($row, $fields), array_values($rows));
         if (isset($assoc['field'])) {
-            foreach ($rows as $row) {
-                echo self::scalar($row[$fields[0]]), "\n";
+            $values = array_column($rows, $fields[0]);
+            if (($assoc['format'] ?? '') === 'json') {
+                // One JSON array, `[]` for no rows.
+                echo json_encode($values, self::JSON), "\n";
+                return;
+            }
+            foreach ($values as $value) {
+                echo self::scalar($value), "\n";
             }
             return;
         }
@@ -35,12 +41,7 @@ class Formatter
                 echo json_encode($rows, self::JSON), "\n";
                 break;
             case 'csv':
-                $out = fopen('php://output', 'w') ?: Runner::error("Can't write to stdout.");
-                fputcsv($out, $fields, ',', '"', '');
-                foreach ($rows as $row) {
-                    fputcsv($out, array_map([self::class, 'scalar'], $row), ',', '"', '');
-                }
-                fclose($out);
+                self::csv($fields, $rows);
                 break;
             case 'yaml':
                 echo self::yaml($rows);
@@ -71,23 +72,43 @@ class Formatter
         $fields = self::fields($assoc, array_keys($row), $row);
         $row = self::pick($row, $fields);
         if (isset($assoc['field'])) {
-            echo self::scalar($row[$fields[0]]), "\n";
+            $value = $row[$fields[0]];
+            echo ($assoc['format'] ?? '') === 'json'
+                ? json_encode($value, self::JSON)
+                : self::scalar($value), "\n";
             return;
         }
-        switch (self::format($assoc, ['table', 'json', 'yaml'])) {
+        $pairs = [];
+        foreach ($row as $field => $value) {
+            $pairs[] = ['Field' => $field, 'Value' => $value];
+        }
+        switch (self::format($assoc, ['table', 'json', 'csv', 'yaml'])) {
             case 'json':
                 echo json_encode($row, self::JSON), "\n";
+                break;
+            case 'csv':
+                self::csv(['Field', 'Value'], $pairs);
                 break;
             case 'yaml':
                 echo self::yaml($row);
                 break;
             default:
-                $pairs = [];
-                foreach ($row as $field => $value) {
-                    $pairs[] = ['Field' => $field, 'Value' => $value];
-                }
                 echo self::table(['Field', 'Value'], $pairs);
         }
+    }
+
+    /**
+     * @param string[] $header
+     * @param list<array<string,mixed>> $rows
+     */
+    private static function csv(array $header, array $rows): void
+    {
+        $out = fopen('php://output', 'w') ?: Runner::error("Can't write to stdout.");
+        fputcsv($out, $header, ',', '"', '');
+        foreach ($rows as $row) {
+            fputcsv($out, array_map([self::class, 'scalar'], $row), ',', '"', '');
+        }
+        fclose($out);
     }
 
     /**
@@ -191,7 +212,8 @@ class Formatter
     }
 
     /**
-     * Block YAML. Values are written as JSON scalars, which YAML reads unchanged.
+     * Block YAML. Strings are plain where YAML reads them unchanged; others
+     * are written as JSON scalars.
      *
      * @param array<string,mixed>|list<array<string,mixed>> $data
      */
@@ -201,7 +223,7 @@ class Formatter
         $map = static function (array $row, string $indent): string {
             $lines = '';
             foreach ($row as $key => $value) {
-                $lines .= "$indent$key: " . json_encode($value, self::JSON) . "\n";
+                $lines .= "$indent$key: " . self::yamlScalar($value) . "\n";
             }
             return $lines;
         };
@@ -212,5 +234,14 @@ class Formatter
             $out .= "-\n" . $map($row, '  ');
         }
         return $out;
+    }
+
+    private static function yamlScalar(mixed $value): string
+    {
+        $reserved = ['true', 'false', 'null', 'yes', 'no', 'on', 'off'];
+        $plain = is_string($value) && $value !== '' && !is_numeric($value)
+            && !preg_match('/^[\s\-?:,\[\]{}#&*!|>\'"%@`~]|: | #|\s$|\n/', $value)
+            && !in_array(strtolower($value), $reserved, true);
+        return $plain ? $value : (string) json_encode($value, self::JSON);
     }
 }

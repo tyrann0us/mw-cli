@@ -22,7 +22,7 @@ Feature: Search and replace text in many pages
        third line
       -fourth line
       +ORLD line
-      Success: Would change 1 page, 2 replacements.
+      Success: 2 replacements in 1 page to be made.
       """
     When I run "mw page get Foo"
     Then STDOUT should contain:
@@ -41,13 +41,13 @@ Feature: Search and replace text in many pages
     When I run "echo n | mw search-replace '/world/' 'there'"
     Then STDERR should contain:
       """
-      Change 1 page, 1 replacement? [y/n]
+      Make 1 replacement in 1 page? [y/n]
       """
     When I run "echo y | mw search-replace '/world/' 'there' --summary="
     Then STDOUT should be like:
       """
-      Success: Saved 'Foo' as revision {id} (1 replacement).
-      Success: Changed 1 page.
+      Saved 'Foo' as revision {id} (1 replacement).
+      Success: Made 1 replacement in 1 page.
       """
     Given a file "/tmp/q.sql" with:
       """
@@ -70,7 +70,7 @@ Feature: Search and replace text in many pages
     When I run "mw search-replace '/world/' 'there'"
     Then STDOUT should be:
       """
-      Success: Nothing to replace.
+      Success: Made 0 replacements.
       """
 
   Scenario: Scope by category and namespace
@@ -79,8 +79,8 @@ Feature: Search and replace text in many pages
     And I run "mw --user=Admin search-replace '/a /' 'b ' --category=Category:Fruit --namespace=Help --summary=Fruit --minor --yes"
     Then STDOUT should be like:
       """
-      Success: Saved 'Help:Apple' as revision {id} (1 replacement).
-      Success: Changed 1 page.
+      Saved 'Help:Apple' as revision {id} (1 replacement).
+      Success: Made 1 replacement in 1 page.
       """
     Given a file "/tmp/q.sql" with:
       """
@@ -102,7 +102,7 @@ Feature: Search and replace text in many pages
       """
     And STDOUT should contain:
       """
-      Success: Would change 1 page, 1 replacement.
+      Success: 1 replacement in 1 page to be made.
       """
     When I run "mw search-replace '/^a/' 'c' --namespace=Help --dry-run"
     Then STDOUT should contain:
@@ -111,7 +111,7 @@ Feature: Search and replace text in many pages
       """
     And STDOUT should contain:
       """
-      Success: Would change 1 page, 1 replacement.
+      Success: 1 replacement in 1 page to be made.
       """
 
   Scenario: Everything is checked before the first save
@@ -177,7 +177,7 @@ Feature: Search and replace text in many pages
     Then the return code should be 1
     And STDOUT should be like:
       """
-      Success: Saved 'Foo' as revision {id} (1 replacement).
+      Saved 'Foo' as revision {id} (1 replacement).
       """
     And STDERR should contain:
       """
@@ -185,7 +185,7 @@ Feature: Search and replace text in many pages
       """
     And STDERR should contain:
       """
-      Error: Changed 1 page, skipped 1.
+      Error: Made 1 replacement in 1 page, skipped 1 page.
       """
     When I run "mw page get Bar"
     Then STDOUT should be:
@@ -202,5 +202,5 @@ Feature: Search and replace text in many pages
       """
     And STDOUT should be:
       """
-      Success: Changed 0 pages.
+      Success: Made 0 replacements in 0 pages.
       """

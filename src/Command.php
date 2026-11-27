@@ -22,6 +22,13 @@ abstract class Command
     /** False for commands that run without loading MediaWiki. */
     public const NEEDS_WIKI = true;
 
+    /**
+     * Descriptions of subcommand groups for help, e.g. ['category' => '…'] for `page category`.
+     *
+     * @var array<string,string>
+     */
+    public const GROUPS = [];
+
     public function __construct(protected Runner $cli)
     {
     }
@@ -35,7 +42,7 @@ abstract class Command
      * The user from --user (name, or ID if no user has that name), or MediaWiki's
      * "Maintenance script" system user.
      */
-    protected function performer(): User
+    public function performer(): User
     {
         $name = $this->cli->flag('user');
         if ($name === null) {

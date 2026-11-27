@@ -14,12 +14,17 @@ Feature: Read, edit and manage pages
     When I run "mw page put Foo /tmp/foo.wiki --summary='First version'"
     Then STDOUT should be like:
       """
-      Success: Saved 'Foo' as revision {id}.
+      Success: Created page 'Foo' (revision {id}).
       """
     When I run "mw page get Foo"
     Then STDOUT should be:
       """
       Hello [[world]]
+      """
+    When I run "echo Porcelain | mw page put Bar --porcelain"
+    Then STDOUT should be like:
+      """
+      {id}
       """
     When I run "mw page put Foo /tmp/foo.wiki"
     Then STDERR should contain:
@@ -29,7 +34,7 @@ Feature: Read, edit and manage pages
     When I run "echo 'Second version' | mw page put Foo --minor"
     Then STDOUT should be like:
       """
-      Success: Saved 'Foo' as revision {id}.
+      Success: Updated page 'Foo' (revision {id}).
       """
     Given a file "/tmp/q.sql" with:
       """
@@ -60,7 +65,7 @@ Feature: Read, edit and manage pages
     When I try "mw page get Special:Version"
     Then STDERR should contain:
       """
-      Error: Invalid page title 'Special:Version'.
+      Error: Invalid title 'Special:Version'.
       """
     When I try "mw page put Foo /tmp/nope.wiki"
     Then STDERR should contain:
@@ -161,6 +166,12 @@ Feature: Read, edit and manage pages
     Then STDERR should contain:
       """
       Error: Invalid user '999'.
+      """
+    When I try "mw --user=Nobody page list --limit=1"
+    Then the return code should be 1
+    And STDERR should contain:
+      """
+      Error: Invalid user 'Nobody'.
       """
 
   Scenario: List pages by namespace and prefix
@@ -297,7 +308,7 @@ Feature: Read, edit and manage pages
     Then the return code should be 1
     And STDERR should contain:
       """
-      Error: Page not found: 'Nope', 'Nope2'.
+      Error: Pages 'Nope', 'Nope2' don't exist.
       """
     When I run "mw page delete Main_Page main_Page --yes"
     Then STDOUT should be:
@@ -376,7 +387,7 @@ Feature: Read, edit and manage pages
     When I try "mw page protect Nope --edit=sysop"
     Then STDERR should contain:
       """
-      Error: Page not found: 'Nope'.
+      Error: Page 'Nope' doesn't exist.
       """
 
   Scenario: Purge pages
@@ -398,7 +409,7 @@ Feature: Read, edit and manage pages
     When I run "cd /tmp/project && echo text | mw @prod page put Foo"
     Then STDOUT should be like:
       """
-      Success: Saved 'Foo' as revision {id}.
+      Success: Created page 'Foo' (revision {id}).
       """
     Given a file "/tmp/q.sql" with:
       """

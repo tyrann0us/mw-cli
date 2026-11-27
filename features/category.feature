@@ -31,24 +31,24 @@ Feature: List categories and the categories of a page
     Then STDOUT should be:
       """
       title	pages	subcats	files
-      Category:Fruit	2	1	1
-      Category:Fruit/Yellow	1	0	0
+      Fruit	2	1	1
+      Fruit/Yellow	1	0	0
       """
     When I run "mw category list --prefix=Fruit/ --format=csv --fields=title,members"
     Then STDOUT should be:
       """
       title,members
-      Category:Fruit/Yellow,1
+      Fruit/Yellow,1
       """
     When I run "mw category list --prefix=Fruit --limit=1 --field=title"
     Then STDOUT should be:
       """
-      Category:Fruit
+      Fruit
       """
     When I run "mw category list --prefix=Help: --fields=title,members --format=json"
     Then STDOUT should be:
       """
-      [{"title":"Category:Help:Guides","members":1}]
+      [{"title":"Help:Guides","members":1}]
       """
     When I run "mw category list --prefix=Nothing --format=count"
     Then STDOUT should be:
@@ -75,14 +75,19 @@ Feature: List categories and the categories of a page
     When I run "mw page category list Banana"
     Then STDOUT should be:
       """
-      title	category
-      Banana	Category:Fruit
-      Banana	Category:Fruit/Yellow
+      title
+      Fruit
+      Fruit/Yellow
       """
-    When I run "mw page category list banana --limit=1 --field=category"
+    When I run "mw page category list banana --limit=1 --field=title"
     Then STDOUT should be:
       """
-      Category:Fruit
+      Fruit
+      """
+    When I run "mw page category list Main_Page --field=title --format=json"
+    Then STDOUT should be:
+      """
+      []
       """
     When I run "mw page category list Main_Page --format=count"
     Then STDOUT should be:
@@ -104,7 +109,7 @@ Feature: List categories and the categories of a page
     Then the return code should be 1
     And STDERR should contain:
       """
-      Error: Invalid page title '<'.
+      Error: Invalid title '<'.
       """
     When I try "mw page category list"
     Then the return code should be 1

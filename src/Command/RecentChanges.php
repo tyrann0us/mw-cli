@@ -47,7 +47,7 @@ class RecentChanges extends Command
      *
      * [--fields=<fields>]
      * : Comma-separated fields to show: id, timestamp, type, title, namespace, user, comment,
-     * : revision, action. Default: id, timestamp, type, title, user, comment.
+     * revision, action. Default: id, timestamp, type, title, user, comment.
      *
      * [--field=<field>]
      * : Prints only the value of this field.
@@ -142,7 +142,7 @@ class RecentChanges extends Command
             // PHP reads YmdHis (MySQL, SQLite) and PostgreSQL timestamps, which may carry an
             // offset.
             'timestamp' => (new DateTimeImmutable($row->rc_timestamp, $utc))
-                ->setTimezone($utc)->format('Y-m-d\TH:i:s\Z'),
+                ->setTimezone($utc)->format('Y-m-d H:i:s'),
             // mw.edit, mw.new, mw.log, mw.categorize, or an extension's own source.
             'type' => preg_replace('/^mw\./', '', $row->rc_source),
             // Hidden by revision deletion or suppression.
