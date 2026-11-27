@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace MwCli\Tests;
 
 use MwCli\Command\Help;
+use MwCli\Command\Page;
+use MwCli\Command\User;
 use MwCli\ExitException;
 use MwCli\Runner;
 use PHPUnit\Framework\TestCase;
@@ -83,7 +85,8 @@ class RunnerTest extends TestCase
             $cli->resolve(['page', 'category'])
         );
         $this->assertSame(['MwCli\Command\Page', null, []], $cli->resolve(['page']));
-        $this->assertSame('category list', Runner::subcommandName('categoryList'));
+        $this->assertSame('category list', Runner::subcommandName(Page::class, 'categoryList'));
+        $this->assertSame('add-group', Runner::subcommandName(User::class, 'addGroup'));
         $this->assertSame(
             'mw page category list <title> [--limit=<n>] [--format=<format>] '
                 . '[--fields=<fields>] [--field=<field>]',

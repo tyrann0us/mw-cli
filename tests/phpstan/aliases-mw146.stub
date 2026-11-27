@@ -1,0 +1,7 @@
+<?php
+
+// MediaWiki 1.46 moved ManualLogEntry to MediaWiki\Logging and keeps the old name as a
+// class_alias(), which PHPStan doesn't see. 1.43 only has the old name, so mw uses that.
+class ManualLogEntry extends MediaWiki\Logging\ManualLogEntry
+{
+}

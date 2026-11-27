@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace MwCli;
 
+use DateTimeImmutable;
+use DateTimeZone;
+use ManualLogEntry;
 use MediaWiki\Context\DerivativeContext;
 use MediaWiki\Context\RequestContext;
 use MediaWiki\MediaWikiServices;
 use MediaWiki\Title\Title;
 use MediaWiki\User\User;
 use StatusValue;
+use Wikimedia\Rdbms\IDBAccessObject;
 use Wikimedia\Rdbms\IExpression;
 use Wikimedia\Rdbms\IReadableDatabase;
 use Wikimedia\Rdbms\LikeValue;
@@ -32,6 +36,15 @@ abstract class Command
      * @var array<string,string>
      */
     public const GROUPS = [];
+
+    /**
+     * Subcommand names with a hyphen, e.g. ['addGroup' => 'add-group'] for `mw user add-group`.
+     * Other camelCase methods are subcommands of several words: categoryList is
+     * `mw page category list`.
+     *
+     * @var array<string,string>
+     */
+    public const NAMES = [];
 
     private ?User $performer = null;
 
@@ -79,16 +92,53 @@ abstract class Command
             return User::newSystemUser(User::MAINTENANCE_SCRIPT_USER, ['steal' => true])
                 ?? Runner::error("Can't create the '" . User::MAINTENANCE_SCRIPT_USER . "' user.");
         }
-        // The lookup, unlike UserFactory::newFromId(), returns null for IDs that don't exist.
+        return $this->registeredUser($name) ?? Runner::error("Invalid user '$name'.");
+    }
+
+    /**
+     * The registered user with this name, or with this ID if no user has that name.
+     */
+    protected function registeredUser(string $name): ?User
+    {
+        // The lookup, unlike UserFactory::newFromId(), returns null for IDs that don't exist. From
+        // the primary, so a lagging replica can't hide a user that was just created.
         $lookup = $this->services()->getUserIdentityLookup();
-        $user = $lookup->getUserIdentityByName($name);
+        $user = $lookup->getUserIdentityByName($name, IDBAccessObject::READ_LATEST);
         if (!$user?->isRegistered() && ctype_digit($name)) {
-            $user = $lookup->getUserIdentityByUserId((int) $name);
+            $user = $lookup->getUserIdentityByUserId((int) $name, IDBAccessObject::READ_LATEST);
         }
-        if ($user === null || !$user->isRegistered()) {
-            Runner::error("Invalid user '$name'.");
-        }
-        return $this->services()->getUserFactory()->newFromUserIdentity($user);
+        return $user?->isRegistered()
+            ? $this->services()->getUserFactory()->newFromUserIdentity($user)
+            : null;
+    }
+
+    /**
+     * A new log entry. MediaWiki 1.44 moved ManualLogEntry into MediaWiki\Logging and keeps the
+     * old global name only as a deprecated alias, while 1.43 has only the global name. The
+     * return type is in the docblock only, so nothing at runtime depends on the alias.
+     *
+     * @return ManualLogEntry
+     */
+    // phpcs:ignore Syde.Functions.ReturnTypeDeclaration.NoReturnType -- See the docblock.
+    protected static function logEntry(string $type, string $action)
+    {
+        $namespaced = 'MediaWiki\\Logging\\ManualLogEntry';
+        /** @var class-string<ManualLogEntry> $class */
+        $class = class_exists($namespaced) ? $namespaced : 'ManualLogEntry';
+        /** @var ManualLogEntry $entry */
+        $entry = new $class($type, $action);
+        return $entry;
+    }
+
+    /**
+     * A database timestamp as 'Y-m-d H:i:s' in UTC, or null.
+     */
+    protected static function timestamp(?string $timestamp): ?string
+    {
+        // PHP reads YmdHis (MySQL, SQLite) and PostgreSQL timestamps, which may carry an offset.
+        $utc = new DateTimeZone('UTC');
+        return $timestamp === null ? null : (new DateTimeImmutable($timestamp, $utc))
+            ->setTimezone($utc)->format('Y-m-d H:i:s');
     }
 
     /**

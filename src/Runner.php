@@ -341,7 +341,7 @@ class Runner
         }
         $methods = [];
         foreach (self::subcommands($class) as $method) {
-            $methods[self::subcommandName($method)] = $method;
+            $methods[self::subcommandName($class, $method)] = $method;
         }
         for ($count = count($args) - 1; $count > 0; $count--) {
             $words = implode(' ', array_slice($args, 1, $count));
@@ -373,7 +373,7 @@ class Runner
     }
 
     /**
-     * @param class-string $class
+     * @param class-string<Command> $class
      * @return string[] Public methods that are subcommands.
      */
     public static function subcommands(string $class): array
@@ -393,10 +393,13 @@ class Runner
         return $methods;
     }
 
+    /**
+     * @param class-string<Command> $class
+     */
     public function usage(string $class, string $method): string
     {
         $name = array_search($class, $this->commands, true);
-        $sub = $method === '__invoke' ? '' : ' ' . self::subcommandName($method);
+        $sub = $method === '__invoke' ? '' : ' ' . self::subcommandName($class, $method);
         $doc = (new ReflectionMethod($class, $method))->getDocComment() ?: '';
         $synopsis = Synopsis::parse($doc)['synopsis'];
         return trim("mw $name$sub $synopsis");
@@ -405,7 +408,7 @@ class Runner
     /**
      * The subcommands in a group, sorted by name: name after the group's words => method.
      *
-     * @param class-string $class
+     * @param class-string<Command> $class
      * @param string[] $group
      * @return array<string,string>
      */
@@ -414,7 +417,7 @@ class Runner
         $prefix = $group ? implode(' ', $group) . ' ' : '';
         $subs = [];
         foreach (self::subcommands($class) as $method) {
-            $name = self::subcommandName($method);
+            $name = self::subcommandName($class, $method);
             if (str_starts_with($name, $prefix)) {
                 $subs[substr($name, strlen($prefix))] = $method;
             }
@@ -443,11 +446,14 @@ class Runner
     }
 
     /**
-     * The subcommand's words: categoryList is `category list`.
+     * The subcommand's words: categoryList is `category list`, unless the class's NAMES gives
+     * the method a hyphenated name.
+     *
+     * @param class-string<Command> $class
      */
-    public static function subcommandName(string $method): string
+    public static function subcommandName(string $class, string $method): string
     {
-        return str_replace('-', ' ', self::kebab($method));
+        return $class::NAMES[$method] ?? str_replace('-', ' ', self::kebab($method));
     }
 
     /**

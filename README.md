@@ -48,6 +48,7 @@ $ mw page move Old_Title New_Title --reason="Rename"
 $ mw category list --prefix=Fruit
 $ mw search-replace '/colou?r/i' 'color' --namespace=0 --dry-run
 $ mw recent-changes --limit=10
+$ mw user add-group Alice sysop --reason="New admin"
 $ mw maint runJobs --maxjobs=100
 ```
 

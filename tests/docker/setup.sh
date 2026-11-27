@@ -12,6 +12,10 @@ if [ ! -f LocalSettings.php ]; then
 	fi
 	php maintenance/run.php install "$@" --server=http://localhost --scriptpath= \
 		--pass=AdminPassword123 'Test Wiki' Admin
+	# Lets a scenario make an extension refuse a group change, e.g. for the "hook stopped" warning.
+	cat >> LocalSettings.php <<'PHP'
+$wgHooks['UserAddGroup'][] = static fn ( $user, &$group ) => getenv( 'MW_CLI_TEST_REFUSE_GROUP' ) !== $group;
+PHP
 	if [ "$SMW" = 1 ]; then
 		printf "wfLoadExtension( 'SemanticMediaWiki' );\n" >> LocalSettings.php
 		php maintenance/run.php update --quick
