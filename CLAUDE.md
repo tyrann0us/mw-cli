@@ -57,7 +57,7 @@ MediaWiki-specific commands:
 
 - `ask`: Semantic MediaWiki queries. It fails with a clear error if SMW isn't loaded.
 - `parse`: wikitext to HTML.
-- `maint <script> [args]`: passthrough to `maintenance/run.php`, which covers the job queue, rebuilds and imports. Its stderr goes through `Maint::rewrite()`, which turns run.php's errors for an unknown script or option into mw's wording.
+- `maint <script> [args]`: passthrough to `maintenance/run.php`, which covers the job queue, rebuilds and imports.
 
 Categories: `mw category list` lists the categories that have members, with counts from the `category` table. `mw page category list <title>` lists the categories of one page. `mw page list --category=<name>` lists a category's members; it gets their IDs from `Category::getMembers()`, which hides the `categorylinks` schema change after 1.43, and the page query then filters, sorts and limits them. Subcategories and files are pages in the Category and File namespaces, so `--namespace` picks them out.
 

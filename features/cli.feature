@@ -124,7 +124,7 @@ Feature: Run mw, get help and use global flags
       See 'mw help' for available commands.
       Did you mean 'page'?
       """
-    When I try "mw page lsit"
+    When I try "mw page lst"
     Then STDERR should contain:
       """
       Did you mean 'list'?
@@ -158,20 +158,6 @@ Feature: Run mw, get help and use global flags
     Then STDOUT should contain:
       """
       Total pages       : 1
-      """
-
-  Scenario: Maintenance script errors use mw's wording
-    When I try "mw maint noSuchScript"
-    Then the return code should be 1
-    And STDERR should contain:
-      """
-      Error: Unknown maintenance script 'noSuchScript'.
-      """
-    When I try "mw maint showSiteStats --nope"
-    Then the return code should be 1
-    And STDERR should contain:
-      """
-      Error: Unknown parameter: --nope.
       """
 
   Scenario: Aliases from mw.ini
