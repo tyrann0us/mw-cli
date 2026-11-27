@@ -160,6 +160,10 @@ Feature: Run mw, get help and use global flags
       Total pages       : 1
       """
 
+  Scenario: A failing maintenance script fails mw
+    When I try "mw maint noSuchScript"
+    Then the return code should be 1
+
   Scenario: Aliases from mw.ini
     Given a file "/tmp/project/mw.ini" with:
       """
