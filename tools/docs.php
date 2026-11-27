@@ -111,15 +111,5 @@ foreach ($pages as $words) {
     is_dir(dirname($file)) || mkdir(dirname($file), 0777, true);
     file_put_contents($file, $markdown($words));
 }
-// GitHub Pages enables these plugins anyway. Listing them makes a local `jekyll serve` build
-// the pages the same way: without front matter, with the theme's layout and page titles.
-file_put_contents("$dir/_config.yml", <<<'YAML'
-    title: MW-CLI
-    description: Command reference
-    theme: jekyll-theme-primer
-    plugins:
-      - jekyll-optional-front-matter
-      - jekyll-default-layout
-      - jekyll-titles-from-headings
-    YAML);
+file_put_contents("$dir/_config.yml", "title: MW-CLI\ndescription: Command reference\n");
 echo 'Wrote ', count($pages), " pages to $dir\n";
