@@ -7,7 +7,6 @@ namespace MwCli\Command;
 use MediaWiki\Category\Category;
 use MediaWiki\CommentStore\CommentStoreComment;
 use MediaWiki\Content\Content;
-use MediaWiki\Context\RequestContext;
 use MediaWiki\Page\PageIdentity;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Revision\SlotRecord;
@@ -80,7 +79,7 @@ class SearchReplace extends Command
         [$changes, $total] = $this->changes($pages, $regex, $replacement, $dryRun);
 
         if (!$changes) {
-            Runner::success('Made 0 replacements.');
+            Runner::success($dryRun ? '0 replacements to be made.' : 'Made 0 replacements.');
             return;
         }
         $summary = self::plural($total, 'replacement') . ' in '
@@ -199,9 +198,7 @@ class SearchReplace extends Command
         $status = $conflict ? StatusValue::newFatal('edit-conflict') : $updater->getStatus();
         // Earlier pages are saved already, so a failed page doesn't stop the others.
         if (!$status->isOK()) {
-            $statusFormatter = $this->services()->getFormatterFactory()
-                ->getStatusFormatter(RequestContext::getMain());
-            Runner::warning("Skipped '$name': " . $statusFormatter->getMessage($status)->text());
+            Runner::warning("Skipped '$name': " . $this->statusText($status));
             return 'skipped';
         }
         if ($revision === null) {
@@ -213,7 +210,7 @@ class SearchReplace extends Command
         $this->services()->getDBLoadBalancerFactory()->waitForReplication();
         $replaced = self::plural($count, 'replacement');
         // Progress only: the one Success line comes at the end.
-        Runner::line("Saved '$name' as revision {$revision->getId()} ($replaced).");
+        Runner::progress("Updated page '$name' (revision {$revision->getId()}, $replaced).");
         return 'saved';
     }
 

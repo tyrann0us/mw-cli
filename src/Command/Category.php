@@ -56,15 +56,13 @@ class Category extends Command
             ->where('cat_pages > 0')
             ->orderBy('cat_title')
             ->caller(__METHOD__);
-        $limit = $this->limit($assocArgs);
-        if ($limit !== null) {
-            $query->limit($limit);
-        }
+        $this->applyLimit($query, $assocArgs);
         if (isset($assocArgs['prefix'])) {
             $prefix = (string) $assocArgs['prefix'];
             $query->andWhere($this->titlePrefix($db, 'cat_title', $prefix, NS_CATEGORY));
         }
 
+        $titles = $this->services()->getTitleFactory();
         $rows = [];
         foreach ($query->fetchResultSet() as $row) {
             /** @var stdClass $row */
@@ -73,7 +71,7 @@ class Category extends Command
             $subcats = (int) $row->cat_subcats;
             $files = (int) $row->cat_files;
             $rows[] = [
-                'title' => strtr($row->cat_title, '_', ' '),
+                'title' => $titles->makeTitle(NS_CATEGORY, $row->cat_title)->getText(),
                 'members' => $members,
                 // The counts can drift apart, so never below 0, as in Category::getPageCount().
                 'pages' => max(0, $members - $subcats - $files),

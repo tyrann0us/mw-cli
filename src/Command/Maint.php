@@ -54,14 +54,30 @@ class Maint extends Command
         $process = proc_open(implode(' ', $cmd), $descriptors, $pipes)
             ?: Runner::error("Can't run maintenance/run.php.");
         $stderr = $pipes[2];
+        $pending = '';
         while (!feof($stderr)) {
-            fwrite(STDERR, self::rewrite((string) fgets($stderr)));
+            $pending .= (string) fread($stderr, 8192);
+            // Complete lines go out at once. An unfinished line waits only if it starts like one
+            // of the errors rewrite() handles, so prompts show immediately.
+            $cut = strrpos($pending, "\n");
+            $ready = $cut === false ? '' : substr($pending, 0, $cut + 1);
+            $pending = $cut === false ? $pending : substr($pending, $cut + 1);
+            if (!self::mayBecomeError($pending)) {
+                [$ready, $pending] = [$ready . $pending, ''];
+            }
+            fwrite(STDERR, self::rewrite($ready));
         }
+        fwrite(STDERR, self::rewrite($pending));
         fclose($stderr);
         $code = proc_close($process);
         if ($code !== 0) {
             throw new ExitException('', $code);
         }
+    }
+
+    private static function mayBecomeError(string $line): bool
+    {
+        return preg_match("/^(Script '|ERROR: Unexpected option)/", $line) === 1;
     }
 
     /**
@@ -71,9 +87,9 @@ class Maint extends Command
     private static function rewrite(string $line): string
     {
         $patterns = [
-            "/^Script '(.+)' not found \(tried path .*\n/"
-                => "Error: Unknown maintenance script '$1'.\n",
-            '/^ERROR: Unexpected option (--\S+)!\n/' => "Error: Unknown parameter: $1.\n",
+            "/^Script '(.+)' not found \(tried path .*$/m"
+                => "Error: Unknown maintenance script '$1'.",
+            '/^ERROR: Unexpected option (--\S+)!$/m' => 'Error: Unknown parameter: $1.',
         ];
         return preg_replace(array_keys($patterns), array_values($patterns), $line) ?? $line;
     }

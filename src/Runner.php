@@ -361,7 +361,10 @@ class Runner
                 self::error(
                     "'$word' is not a registered subcommand of '$parent'. "
                         . "See 'mw help $parent' for available subcommands."
-                        . self::suggestion($word, self::nextWords(array_keys($methods), $group))
+                        . self::suggestion($word, array_map(
+                            static fn (string $sub): string => explode(' ', $sub)[0],
+                            array_keys(self::groupSubcommands($class, $group))
+                        ))
                 );
             }
             $group[] = $word;
@@ -378,6 +381,7 @@ class Runner
         $methods = [];
         $public = (new ReflectionClass($class))->getMethods(ReflectionMethod::IS_PUBLIC);
         foreach ($public as $method) {
+            // Constructors and static helpers aren't subcommands.
             if (
                 !$method->isStatic()
                 && !$method->isConstructor()
@@ -399,33 +403,36 @@ class Runner
     }
 
     /**
-     * The words that can follow $group in these subcommand names.
+     * The subcommands in a group, sorted by name: name after the group's words => method.
      *
-     * @param string[] $subcommands
+     * @param class-string $class
      * @param string[] $group
-     * @return string[]
+     * @return array<string,string>
      */
-    private static function nextWords(array $subcommands, array $group): array
+    public static function groupSubcommands(string $class, array $group): array
     {
-        $before = $group ? implode(' ', $group) . ' ' : '';
-        $next = [];
-        foreach ($subcommands as $subcommand) {
-            if (str_starts_with($subcommand, $before)) {
-                $next[] = explode(' ', substr($subcommand, strlen($before)))[0];
+        $prefix = $group ? implode(' ', $group) . ' ' : '';
+        $subs = [];
+        foreach (self::subcommands($class) as $method) {
+            $name = self::subcommandName($method);
+            if (str_starts_with($name, $prefix)) {
+                $subs[substr($name, strlen($prefix))] = $method;
             }
         }
-        return $next;
+        ksort($subs);
+        return $subs;
     }
 
     /**
-     * A "Did you mean" line for the closest name within two edits.
+     * A "Did you mean" line for the closest name within two edits (one for short words).
      *
      * @param string[] $names
      */
     private static function suggestion(string $word, array $names): string
     {
         $best = null;
-        $distance = 3;
+        // Short words need a closer match: `ls` shouldn't suggest `ask`.
+        $distance = min(2, max(1, intdiv(strlen($word), 2))) + 1;
         foreach ($names as $name) {
             $edits = levenshtein($word, $name);
             if ($edits < $distance) {
@@ -459,9 +466,19 @@ class Runner
         return $exception->getCode();
     }
 
-    public static function line(string $message = ''): void
+    public static function line(string $message): void
     {
         echo $message, "\n";
+    }
+
+    /**
+     * A progress message; --quiet silences it like success().
+     */
+    public static function progress(string $message): void
+    {
+        if (!self::$quiet) {
+            echo "$message\n";
+        }
     }
 
     public static function success(string $message): void
@@ -478,15 +495,14 @@ class Runner
         }
     }
 
-    public static function error(string $message, int $code = 1): never
+    public static function error(string $message): never
     {
-        throw new ExitException($message, $code);
+        throw new ExitException($message, 1);
     }
 
     /**
      * Asks for a yes/no answer unless --yes was passed. Exits quietly with 0 on anything but "y".
      *
-     * @param string $question
      * @param array<string,string|bool> $assoc
      */
     public static function confirm(string $question, array $assoc): void

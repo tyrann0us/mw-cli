@@ -30,7 +30,7 @@ class Help extends Command
               Run the command on a remote host over SSH.
 
           --user=<user>
-              Name or ID of the user that makes the edits.
+              Name or ID of the user that runs the command and makes its edits.
 
           --quiet
               Suppress success and warning messages.
@@ -64,8 +64,12 @@ class Help extends Command
         }
         $pager = getenv('PAGER') ?: 'less -R';
         $pipe = popen($pager, 'w') ?: Runner::error("Can't run the pager '$pager'.");
-        fwrite($pipe, $text);
-        pclose($pipe);
+        // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- A pager that quits early.
+        @fwrite($pipe, $text);
+        if (pclose($pipe) === 127) {
+            // The shell didn't find the pager: print the help instead.
+            echo $text;
+        }
     }
 
     /**
@@ -77,7 +81,7 @@ class Help extends Command
     {
         [$class, , $group] = $this->cli->resolve($words);
         $lines = [];
-        foreach (self::subs($class, $group) as $method) {
+        foreach (Runner::groupSubcommands($class, $group) as $method) {
             $lines[] = $this->cli->usage($class, $method);
         }
         $name = implode(' ', $words);
@@ -104,18 +108,21 @@ class Help extends Command
                 . self::section('SUBCOMMANDS', self::list($commands));
         }
 
-        [$class, $method, $group] = $this->cli->resolve($args);
+        // The third value is the group's words without a method, the leftover args with one.
+        [$class, $method, $rest] = $this->cli->resolve($args);
+        $group = $method === null ? $rest : [];
         if ($method === null) {
             // The command, or a group of subcommands such as `page category`.
             $name = implode(' ', ['mw', $args[0], ...$group]);
             $subs = array_map(
                 static fn (string $method): string => self::summary(new ReflectionMethod($class, $method)),
-                self::subs($class, $group)
+                Runner::groupSubcommands($class, $group)
             );
             // A group of words has no docblock of its own: its description is in GROUPS.
-            $description = self::section('DESCRIPTION', $group
+            $description = $group
                 ? $class::GROUPS[implode(' ', $group)] ?? ''
-                : self::summary(new ReflectionClass($class)));
+                : self::summary(new ReflectionClass($class));
+            $description = $description === '' ? '' : self::section('DESCRIPTION', $description);
             return self::section('NAME', $name)
                 . $description
                 . self::section('SYNOPSIS', "$name <command>")
@@ -126,7 +133,8 @@ class Help extends Command
         $text = Synopsis::parse($doc)['text'];
         [$description, $sections] = array_pad(explode("\n## ", $text, 2), 2, '');
         $usage = $this->cli->usage($class, $method);
-        return self::section('NAME', 'mw ' . implode(' ', $args))
+        $words = array_slice($args, 0, count($args) - count($rest));
+        return self::section('NAME', 'mw ' . implode(' ', $words))
             . self::section('DESCRIPTION', self::indent($description))
             . self::section('SYNOPSIS', $usage)
             . ($sections === '' ? '' : self::indent("## $sections") . "\n\n");
@@ -154,27 +162,6 @@ class Help extends Command
             $lines[] = $line;
         }
         return ltrim(implode("\n", $lines));
-    }
-
-    /**
-     * The subcommands in a group, sorted by name: name after the group's words => method.
-     *
-     * @param class-string $class
-     * @param string[] $group
-     * @return array<string,string>
-     */
-    private static function subs(string $class, array $group): array
-    {
-        $prefix = $group ? implode(' ', $group) . ' ' : '';
-        $subs = [];
-        foreach (Runner::subcommands($class) as $method) {
-            $name = Runner::subcommandName($method);
-            if (str_starts_with($name, $prefix)) {
-                $subs[substr($name, strlen($prefix))] = $method;
-            }
-        }
-        ksort($subs);
-        return $subs;
     }
 
     private static function section(string $title, string $body): string

@@ -23,9 +23,10 @@ class Formatter
     {
         $fields = self::fields($assoc, $defaultFields, $rows[array_key_first($rows)] ?? null);
         $rows = array_map(static fn (array $row): array => self::pick($row, $fields), array_values($rows));
+        $format = self::format($assoc);
         if (isset($assoc['field'])) {
             $values = array_column($rows, $fields[0]);
-            if (($assoc['format'] ?? '') === 'json') {
+            if ($format === 'json') {
                 // One JSON array, `[]` for no rows.
                 echo json_encode($values, self::JSON), "\n";
                 return;
@@ -36,7 +37,7 @@ class Formatter
             return;
         }
 
-        switch (self::format($assoc)) {
+        switch ($format) {
             case 'json':
                 echo json_encode($rows, self::JSON), "\n";
                 break;
@@ -71,29 +72,32 @@ class Formatter
     {
         $fields = self::fields($assoc, array_keys($row), $row);
         $row = self::pick($row, $fields);
+        $format = self::format($assoc, ['table', 'json', 'csv', 'yaml']);
         if (isset($assoc['field'])) {
             $value = $row[$fields[0]];
-            echo ($assoc['format'] ?? '') === 'json'
+            echo $format === 'json'
                 ? json_encode($value, self::JSON)
                 : self::scalar($value), "\n";
             return;
         }
-        $pairs = [];
-        foreach ($row as $field => $value) {
-            $pairs[] = ['Field' => $field, 'Value' => $value];
-        }
-        switch (self::format($assoc, ['table', 'json', 'csv', 'yaml'])) {
+        $pairs = static fn (): array => array_map(
+            static fn (string $field, mixed $value): array
+                => ['Field' => $field, 'Value' => $value],
+            array_keys($row),
+            $row
+        );
+        switch ($format) {
             case 'json':
                 echo json_encode($row, self::JSON), "\n";
                 break;
             case 'csv':
-                self::csv(['Field', 'Value'], $pairs);
+                self::csv(['Field', 'Value'], $pairs());
                 break;
             case 'yaml':
                 echo self::yaml($row);
                 break;
             default:
-                echo self::table(['Field', 'Value'], $pairs);
+                echo self::table(['Field', 'Value'], $pairs());
         }
     }
 
@@ -238,9 +242,12 @@ class Formatter
 
     private static function yamlScalar(mixed $value): string
     {
-        $reserved = ['true', 'false', 'null', 'yes', 'no', 'on', 'off'];
-        $plain = is_string($value) && $value !== '' && !is_numeric($value)
-            && !preg_match('/^[\s\-?:,\[\]{}#&*!|>\'"%@`~]|: | #|\s$|\n/', $value)
+        $reserved = ['true', 'false', 'null', 'yes', 'no', 'on', 'off', 'y', 'n'];
+        // Quoted: anything a YAML 1.1 parser reads as a number, date, bool or null, or that
+        // breaks the line's syntax.
+        $plain = is_string($value) && $value !== ''
+            && !preg_match('/^[\s\-?:,\[\]{}#&*!|>\'"%@`~.+=\d]|: | #|:$|\s$/', $value)
+            && !preg_match('/[\x00-\x1F\x7F\x{85}\x{2028}\x{2029}]/u', $value)
             && !in_array(strtolower($value), $reserved, true);
         return $plain ? $value : (string) json_encode($value, self::JSON);
     }

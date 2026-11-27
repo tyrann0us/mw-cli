@@ -65,10 +65,7 @@ class Backlinks extends Command
             ->where($this->services()->getLinksMigration()->getLinksConditions(static::TABLE, $target))
             ->orderBy(['page_namespace', 'page_title'])
             ->caller(__METHOD__);
-        $limit = $this->limit($assocArgs);
-        if ($limit !== null) {
-            $query->limit($limit);
-        }
+        $this->applyLimit($query, $assocArgs);
         if (isset($assocArgs['namespace'])) {
             $namespace = $this->namespace((string) $assocArgs['namespace']);
             $query->andWhere([static::FROM . '_namespace' => $namespace]);

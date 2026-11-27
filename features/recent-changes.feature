@@ -33,7 +33,7 @@ Feature: List recent changes
     When I run "mw recent-changes --limit=1 --format=yaml --fields=timestamp"
     Then STDOUT should contain:
       """
-      timestamp: 20
+      timestamp: "20
       """
     And STDOUT should contain:
       """

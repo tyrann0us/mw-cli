@@ -87,9 +87,13 @@ class FormatterTest extends TestCase
     {
         $this->expectOutputString(
             "---\na: \"true\"\nb: \"12\"\nc: \"\"\nd: \"x: y\"\ne: x y\nf: 3\n"
+                . "g: \"See also:\"\nh: \"y\"\ni: \"2026-11-27 10:00:00\"\nj: \"a\\tb\"\n"
         );
         Formatter::item(
-            ['a' => 'true', 'b' => '12', 'c' => '', 'd' => 'x: y', 'e' => 'x y', 'f' => 3],
+            [
+                'a' => 'true', 'b' => '12', 'c' => '', 'd' => 'x: y', 'e' => 'x y', 'f' => 3,
+                'g' => 'See also:', 'h' => 'y', 'i' => '2026-11-27 10:00:00', 'j' => "a\tb",
+            ],
             ['format' => 'yaml']
         );
     }
@@ -112,6 +116,12 @@ class FormatterTest extends TestCase
         $this->expectException(ExitException::class);
         $this->expectExceptionMessage('Invalid field: nope.');
         Formatter::items(self::ROWS, ['fields' => 'id,nope'], ['id']);
+    }
+
+    public function testInvalidFormatFailsWithField(): void
+    {
+        $this->expectException(ExitException::class);
+        Formatter::items(self::ROWS, ['field' => 'id', 'format' => 'xml'], ['id']);
     }
 
     public function testInvalidFormatFails(): void

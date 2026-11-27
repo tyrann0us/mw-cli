@@ -6,7 +6,6 @@ namespace MwCli\Command;
 
 use MediaWiki\Category\Category;
 use MediaWiki\CommentStore\CommentStoreComment;
-use MediaWiki\Context\RequestContext;
 use MediaWiki\MainConfigNames;
 use MediaWiki\Revision\SlotRecord;
 use MediaWiki\Title\Title;
@@ -90,10 +89,11 @@ class Page extends Command
             Runner::error("Can't read '$file'.");
         }
         $page = $this->services()->getWikiPageFactory()->newFromTitle($title);
-        if (!empty($assocArgs['create-only']) && $page->exists()) {
+        $existed = $page->exists();
+        if (!empty($assocArgs['create-only']) && $existed) {
             Runner::error("Page '{$title->getPrefixedText()}' already exists.");
         }
-        if (($assocArgs['create'] ?? true) === false && !$page->exists()) {
+        if (($assocArgs['create'] ?? true) === false && !$existed) {
             $this->missing($title);
         }
         $content = $this->services()->getContentHandlerFactory()
@@ -110,17 +110,18 @@ class Page extends Command
                 | (($assocArgs['create'] ?? true) === false ? EDIT_UPDATE : 0)
         );
         $this->check($updater->getStatus());
-        if ($revision === null) {
-            Runner::warning("No change: '{$title->getPrefixedText()}' already has this text.");
-            return;
-        }
-        $action = $revision->getParentId() ? 'Updated' : 'Created';
-        if (!empty($assocArgs['porcelain'])) {
-            Runner::line((string) $revision->getPageId());
-            return;
-        }
         $name = $title->getPrefixedText();
-        Runner::success("$action page '$name' (revision {$revision->getId()}).");
+        if ($revision === null) {
+            Runner::warning("No change: '$name' already has this text.");
+        }
+        if (!empty($assocArgs['porcelain'])) {
+            Runner::line((string) $page->getId());
+            return;
+        }
+        if ($revision !== null) {
+            $action = $existed ? 'Updated' : 'Created';
+            Runner::success("$action page '$name' (revision {$revision->getId()}).");
+        }
     }
 
     /**
@@ -169,10 +170,7 @@ class Page extends Command
         $query = $this->services()->getPageStore()->newSelectQueryBuilder($db)
             ->orderBy(['page_namespace', 'page_title'])
             ->caller(__METHOD__);
-        $limit = $this->limit($assocArgs);
-        if ($limit !== null) {
-            $query->limit($limit);
-        }
+        $this->applyLimit($query, $assocArgs);
         $namespace = isset($assocArgs['namespace'])
             ? $this->namespace((string) $assocArgs['namespace'])
             : null;
@@ -504,8 +502,7 @@ class Page extends Command
     private function check(StatusValue $status): void
     {
         if (!$status->isOK()) {
-            $formatter = $this->services()->getFormatterFactory()->getStatusFormatter(RequestContext::getMain());
-            Runner::error($formatter->getMessage($status)->text());
+            Runner::error($this->statusText($status));
         }
     }
 }

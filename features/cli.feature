@@ -14,6 +14,13 @@ Feature: Run mw, get help and use global flags
       EMAN
       """
 
+  Scenario: Help is printed when the pager is missing
+    When I run "script -qec 'PAGER=no-such-pager mw help cli version' /dev/null"
+    Then STDOUT should contain:
+      """
+      NAME
+      """
+
   Scenario: Help for a subcommand shows its usage
     When I run "mw cli version --help"
     Then STDOUT should contain:

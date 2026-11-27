@@ -26,6 +26,11 @@ Feature: Read, edit and manage pages
       """
       {id}
       """
+    When I run "echo Porcelain | mw page put Bar --porcelain"
+    Then STDOUT should be like:
+      """
+      {id}
+      """
     When I run "mw page put Foo /tmp/foo.wiki"
     Then STDERR should contain:
       """

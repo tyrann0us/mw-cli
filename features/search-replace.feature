@@ -46,7 +46,7 @@ Feature: Search and replace text in many pages
     When I run "echo y | mw search-replace '/world/' 'there' --summary="
     Then STDOUT should be like:
       """
-      Saved 'Foo' as revision {id} (1 replacement).
+      Updated page 'Foo' (revision {id}, 1 replacement).
       Success: Made 1 replacement in 1 page.
       """
     Given a file "/tmp/q.sql" with:
@@ -72,6 +72,11 @@ Feature: Search and replace text in many pages
       """
       Success: Made 0 replacements.
       """
+    When I run "mw search-replace '/world/' 'there' --dry-run"
+    Then STDOUT should be:
+      """
+      Success: 0 replacements to be made.
+      """
 
   Scenario: Scope by category and namespace
     When I run "echo 'a [[Category:Fruit]]' | mw page put Apple && echo 'a [[Category:Fruit]]' | mw page put Help:Apple"
@@ -79,7 +84,7 @@ Feature: Search and replace text in many pages
     And I run "mw --user=Admin search-replace '/a /' 'b ' --category=Category:Fruit --namespace=Help --summary=Fruit --minor --yes"
     Then STDOUT should be like:
       """
-      Saved 'Help:Apple' as revision {id} (1 replacement).
+      Updated page 'Help:Apple' (revision {id}, 1 replacement).
       Success: Made 1 replacement in 1 page.
       """
     Given a file "/tmp/q.sql" with:
@@ -177,7 +182,7 @@ Feature: Search and replace text in many pages
     Then the return code should be 1
     And STDOUT should be like:
       """
-      Saved 'Foo' as revision {id} (1 replacement).
+      Updated page 'Foo' (revision {id}, 1 replacement).
       """
     And STDERR should contain:
       """
