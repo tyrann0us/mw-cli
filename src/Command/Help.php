@@ -76,14 +76,10 @@ class Help extends Command
     public function usage(array $words): void
     {
         [$class, , $group] = $this->cli->resolve($words);
-        $prefix = $group ? implode(' ', $group) . ' ' : '';
         $lines = [];
-        foreach (Runner::subcommands($class) as $method) {
-            if (str_starts_with(Runner::subcommandName($method), $prefix)) {
-                $lines[] = $this->cli->usage($class, $method);
-            }
+        foreach (self::subs($class, $group) as $method) {
+            $lines[] = $this->cli->usage($class, $method);
         }
-        sort($lines);
         $name = implode(' ', $words);
         echo 'usage: ', implode("\n   or: ", $lines), "\n\n",
             "See 'mw help $name <command>' for more information on a specific command.\n";
@@ -112,16 +108,10 @@ class Help extends Command
         if ($method === null) {
             // The command, or a group of subcommands such as `page category`.
             $name = implode(' ', ['mw', $args[0], ...$group]);
-            $prefix = $group ? implode(' ', $group) . ' ' : '';
-            $subs = [];
-            foreach (Runner::subcommands($class) as $subMethod) {
-                $sub = Runner::subcommandName($subMethod);
-                if (str_starts_with($sub, $prefix)) {
-                    $summary = self::summary(new ReflectionMethod($class, $subMethod));
-                    $subs[substr($sub, strlen($prefix))] = $summary;
-                }
-            }
-            ksort($subs);
+            $subs = array_map(
+                static fn (string $method): string => self::summary(new ReflectionMethod($class, $method)),
+                self::subs($class, $group)
+            );
             // A group of words has no docblock of its own: its description is in GROUPS.
             $description = self::section('DESCRIPTION', $group
                 ? $class::GROUPS[implode(' ', $group)] ?? ''
@@ -136,8 +126,7 @@ class Help extends Command
         $text = Synopsis::parse($doc)['text'];
         [$description, $sections] = array_pad(explode("\n## ", $text, 2), 2, '');
         $usage = $this->cli->usage($class, $method);
-        $name = trim(substr($usage, 0, strlen($usage) - strlen(Synopsis::parse($doc)['synopsis'])));
-        return self::section('NAME', $name)
+        return self::section('NAME', 'mw ' . implode(' ', $args))
             . self::section('DESCRIPTION', self::indent($description))
             . self::section('SYNOPSIS', $usage)
             . ($sections === '' ? '' : self::indent("## $sections") . "\n\n");
@@ -165,6 +154,27 @@ class Help extends Command
             $lines[] = $line;
         }
         return ltrim(implode("\n", $lines));
+    }
+
+    /**
+     * The subcommands in a group, sorted by name: name after the group's words => method.
+     *
+     * @param class-string $class
+     * @param string[] $group
+     * @return array<string,string>
+     */
+    private static function subs(string $class, array $group): array
+    {
+        $prefix = $group ? implode(' ', $group) . ' ' : '';
+        $subs = [];
+        foreach (Runner::subcommands($class) as $method) {
+            $name = Runner::subcommandName($method);
+            if (str_starts_with($name, $prefix)) {
+                $subs[substr($name, strlen($prefix))] = $method;
+            }
+        }
+        ksort($subs);
+        return $subs;
     }
 
     private static function section(string $title, string $body): string
