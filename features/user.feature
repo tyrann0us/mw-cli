@@ -35,10 +35,11 @@ Feature: Manage user accounts
       """
       {"name":"Admin","groups":"bureaucrat, interface-admin, sysop"}
       """
-    When I run "mw user get 1 --field=name"
+    # The ID of Admin differs between MediaWiki versions, so the lookup by ID checks the ID.
+    When I run "mw user get 1 --field=id"
     Then STDOUT should be:
       """
-      Admin
+      1
       """
 
   Scenario: Unknown users and groups fail
@@ -176,13 +177,13 @@ Feature: Manage user accounts
       """
       {"email":"alice@example.org","realname":"Alice Example"}
       """
-    When I run "printf 'An0ther-Passw0rd' | mw user update Alice --password --email="
+    When I run "printf 'N3w-Passw0rd-2' | mw user update Alice --password --email="
     And I run "mw user get Alice --field=email"
     Then STDOUT should be:
       """
 
       """
-    When I try "printf 'An0ther-Passw0rd' | mw user update 'Maintenance script' --password"
+    When I try "printf 'N3w-Passw0rd-2' | mw user update 'Maintenance script' --password"
     Then the return code should be 1
     And STDERR should contain:
       """
@@ -322,4 +323,3 @@ Feature: Manage user accounts
       """
       Bob
       """
-
