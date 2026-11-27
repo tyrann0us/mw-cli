@@ -631,9 +631,11 @@ class User extends Command
         // The upload stash refers to the user, not the actor.
         $stashed = $db->newSelectQueryBuilder()->select('1')->from('uploadstash')
             ->where(['us_user' => $id])->limit(1)->caller(__METHOD__)->fetchField();
-        if ($stashed !== false || $actor === null) {
-            return $stashed !== false;
+        if ($stashed !== false) {
+            return true;
         }
+        // An account that never acted has no actor; 0 then matches no rows.
+        $actor ??= 0;
         $checks = [
             'revision' => 'rev',
             'archive' => 'ar',
@@ -689,9 +691,8 @@ class User extends Command
                     ->caller(__METHOD__)->execute();
             }
         }
-        if ($actor === null) {
-            return;
-        }
+        // An account that never acted has no actor; 0 then matches no rows.
+        $actor ??= 0;
         $refs = ['logging' => 'log_actor', 'block' => 'bl_by_actor'];
         $referenced = false;
         foreach ($refs as $table => $field) {

@@ -122,10 +122,9 @@ abstract class Command
     // phpcs:ignore Syde.Functions.ReturnTypeDeclaration.NoReturnType -- See the docblock.
     protected static function logEntry(string $type, string $action)
     {
+        $namespaced = 'MediaWiki\\Logging\\ManualLogEntry';
         /** @var class-string<ManualLogEntry> $class */
-        $class = class_exists('MediaWiki\\Logging\\ManualLogEntry')
-            ? 'MediaWiki\\Logging\\ManualLogEntry'
-            : 'ManualLogEntry';
+        $class = class_exists($namespaced) ? $namespaced : 'ManualLogEntry';
         /** @var ManualLogEntry $entry */
         $entry = new $class($type, $action);
         return $entry;

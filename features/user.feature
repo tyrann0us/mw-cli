@@ -120,6 +120,13 @@ Feature: Manage user accounts
       """
       Success: Added user 'Alice' to groups 'sysop', 'bot'.
       """
+    When I try "MW_CLI_TEST_REFUSE_GROUP=interface-admin mw user add-group Alice interface-admin"
+    Then the return code should be 1
+    And STDERR should contain:
+      """
+      Warning: A hook stopped the change of group 'interface-admin' for user 'Alice'.
+      Error: No group of user 'Alice' was changed.
+      """
     When I run "mw user add-group Alice sysop"
     Then STDERR should contain:
       """
@@ -267,6 +274,18 @@ Feature: Manage user accounts
     Given a file "/tmp/self.sql" with:
       """
       UPDATE logging SET log_actor = (SELECT actor_id FROM actor WHERE actor_name = 'Alice') WHERE log_type = 'newusers' AND log_title = 'Alice';
+      """
+    Given a file "/tmp/stash.sql" with:
+      """
+      INSERT INTO uploadstash (us_user, us_key, us_orig_path, us_path, us_source_type, us_timestamp, us_status, us_chunk_inx, us_props, us_size, us_sha1, us_mime, us_media_type, us_image_width, us_image_height, us_image_bits) VALUES ((SELECT user_id FROM user WHERE user_name = 'Gina'), 'mwclitest', 'a', 'b', 'file', '20260101000000', 'finished', NULL, '', 0, '', 'text/plain', 'TEXT', 0, 0, 0);
+      """
+    When I run "mw user create Gina"
+    And I run "mw maint sql /tmp/stash.sql"
+    And I try "mw user delete Gina --yes"
+    Then the return code should be 1
+    And STDERR should contain:
+      """
+      Error: User 'Gina' has edits, uploads or log entries, so it can't be deleted.
       """
     When I try "mw user delete 'MediaWiki default' --yes"
     Then the return code should be 1
