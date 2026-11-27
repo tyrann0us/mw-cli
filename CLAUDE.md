@@ -62,6 +62,8 @@ MediaWiki-specific commands:
 
 Categories: `mw category list` lists the categories that have members, with counts from the `category` table. `mw page category list <title>` lists the categories of one page. `mw page list --category=<name>` lists a category's members; it gets their IDs from `Category::getMembers()`, which hides the `categorylinks` schema change after 1.43, and the page query then filters, sorts and limits them. Subcategories and files are pages in the Category and File namespaces, so `--namespace` picks them out.
 
+Users: `mw user list|get|create|update|delete|add-group|remove-group|set-group|list-rights`; `User::NAMES` gives the hyphenated ones their names. `delete` only removes accounts without edits, uploads or log entries, like `removeUnusedAccounts.php`, because MediaWiki can't delete accounts with history. Rights come only from groups, so there is no command to grant a single right. `create` goes through `AuthManager::autoCreateUser()` like `createAndPromote.php` and reads `--password` from stdin, so it never appears in argv. Group changes are written to the user rights log with the performer from `Command::performer()`. PHPStan's 1.46 run knows the global `ManualLogEntry` alias from `tests/phpstan/aliases-mw146.stub`.
+
 `mw search-replace <regex> <replacement>` is scoped with `--category=` or `--namespace=`, and searches the content namespaces without either. It reads and checks every page before the first save. A page edited in between is skipped with a warning (`PageUpdater::hasEditConflict()`). `--dry-run` prints a unified diff per page (MediaWiki's `Wikimedia\Diff\UnifiedDiffFormatter`) without saving.
 
 ## Tests

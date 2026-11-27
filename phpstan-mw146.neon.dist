@@ -7,3 +7,5 @@ parameters:
   scanDirectories:
     - vendor/mediawiki/core-1.46/includes
     - vendor/mediawiki/core-1.46/maintenance/includes
+  scanFiles:
+    - tests/phpstan/aliases-mw146.stub

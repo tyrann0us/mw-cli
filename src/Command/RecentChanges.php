@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace MwCli\Command;
 
-use DateTimeImmutable;
-use DateTimeZone;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Title\TitleFormatter;
 use MediaWiki\User\UserNameUtils;
@@ -77,11 +75,10 @@ class RecentChanges extends Command
         $this->filter($query, $dbr, $assocArgs);
 
         $formatter = $this->services()->getTitleFormatter();
-        $utc = new DateTimeZone('UTC');
         $rows = [];
         foreach ($query->fetchResultSet() as $row) {
             /** @var stdClass $row */
-            $rows[] = $this->row($row, $formatter, $utc);
+            $rows[] = $this->row($row, $formatter);
         }
         $defaultFields = ['id', 'timestamp', 'type', 'title', 'user', 'comment'];
         Formatter::items($rows, $assocArgs, $defaultFields);
@@ -130,7 +127,7 @@ class RecentChanges extends Command
     /**
      * @return array<string,mixed>
      */
-    private function row(stdClass $row, TitleFormatter $formatter, DateTimeZone $utc): array
+    private function row(stdClass $row, TitleFormatter $formatter): array
     {
         $hidden = (int) $row->rc_deleted;
         $hideAction = $row->rc_log_type !== null && $hidden & self::DELETED_ACTION;
@@ -139,10 +136,7 @@ class RecentChanges extends Command
             : $formatter->formatTitle((int) $row->rc_namespace, $row->rc_title);
         return [
             'id' => (int) $row->rc_id,
-            // PHP reads YmdHis (MySQL, SQLite) and PostgreSQL timestamps, which may carry an
-            // offset.
-            'timestamp' => (new DateTimeImmutable($row->rc_timestamp, $utc))
-                ->setTimezone($utc)->format('Y-m-d H:i:s'),
+            'timestamp' => self::timestamp($row->rc_timestamp),
             // mw.edit, mw.new, mw.log, mw.categorize, or an extension's own source.
             'type' => preg_replace('/^mw\./', '', $row->rc_source),
             // Hidden by revision deletion or suppression.
