@@ -57,7 +57,7 @@ class Help extends Command
      */
     public function __invoke(array $args, array $assocArgs): void
     {
-        $text = $this->text($args) . self::GLOBAL_PARAMETERS;
+        $text = $this->page($args);
         if (!stream_isatty(STDOUT)) {
             echo $text;
             return;
@@ -87,6 +87,17 @@ class Help extends Command
         $name = implode(' ', $words);
         echo 'usage: ', implode("\n   or: ", $lines), "\n\n",
             "See 'mw help $name <command>' for more information on a specific command.\n";
+    }
+
+    /**
+     * The whole help text for these words, as `mw help` prints it. tools/docs.php builds the
+     * command reference from it.
+     *
+     * @param string[] $words
+     */
+    public function page(array $words): string
+    {
+        return $this->text($words) . self::GLOBAL_PARAMETERS;
     }
 
     /**

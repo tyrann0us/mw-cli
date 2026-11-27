@@ -38,5 +38,6 @@
   <file>./src</file>
   <file>./tests</file>
   <file>./features</file>
+  <file>./tools</file>
   <arg name="extensions" value="php"/>
 </ruleset>

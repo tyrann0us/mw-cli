@@ -68,7 +68,7 @@
     },
     "scripts": {
         "lint": [
-            "find bin src tests features -name '*.php' -print0 | xargs -0 -n1 php -l > /dev/null && php -l bin/mw > /dev/null",
+            "find bin src tests features tools -name '*.php' -print0 | xargs -0 -n1 php -l > /dev/null && php -l bin/mw > /dev/null",
             "phpcs",
             "phpcs --stdin-path=bin/mw.php - < bin/mw"
         ],

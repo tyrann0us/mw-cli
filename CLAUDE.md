@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-`mw` is a command-line tool for MediaWiki. It runs on the host where MediaWiki is installed and loads MediaWiki in-process, so commands use MediaWiki's PHP services, not the web API. It can also run a command on a remote host over SSH (`--ssh=` or an `@alias`). In that case it calls the `mw` installed on the remote host.
+MW-CLI is a command-line tool for MediaWiki; its command is `mw`. It runs on the host where MediaWiki is installed and loads MediaWiki in-process, so commands use MediaWiki's PHP services, not the web API. It can also run a command on a remote host over SSH (`--ssh=` or an `@alias`). In that case it calls the `mw` installed on the remote host.
 
 Targets MediaWiki 1.43+ (LTS) and PHP 8.1+ (MediaWiki 1.43's minimum).
 
@@ -31,6 +31,7 @@ vendor/bin/behat features/cli.feature:12    # single scenario by line
 vendor/bin/behat --tags='~@smw'       # skip scenarios that need Semantic MediaWiki
 
 bin/mw --path=/var/www/w cli info     # run from a checkout
+php tools/docs.php                    # command reference as Markdown in build/docs
 ```
 
 ## Architecture
@@ -73,7 +74,7 @@ Tests come in two layers:
 
 The container installs the wiki on first start (`tests/docker/setup.sh`) and snapshots the database; `reset-wiki` restores it before each scenario. With `COVERAGE=1`, `tests/coverage/prepend.php` is prepended to every PHP process in the container and writes raw pcov data to `build/coverage/`.
 
-CI uses inpsyde/reusable-workflows where one exists. `quality-assurance-php.yml` runs lint, phpcs, PHPStan (against MediaWiki 1.43 and 1.46) and PHPUnit on PHP 8.1 to 8.4, with unit coverage going to Codecov. `functional-tests.yml` calls `behat.yml` for MediaWiki 1.43 and 1.46 on SQLite and MariaDB, 1.43 with SMW (this job also uploads Behat coverage), and MediaWiki master in the daily cron only. `lint.yml` runs actionlint, gherkin-lint and typos. `.codecov.yml` requires 100% coverage, combining unit and Behat coverage. `composer.lock` is committed and resolved for PHP 8.1 (`config.platform`).
+CI uses inpsyde/reusable-workflows where one exists. `quality-assurance-php.yml` runs lint, phpcs, PHPStan (against MediaWiki 1.43 and 1.46) and PHPUnit on PHP 8.1 to 8.4, with unit coverage going to Codecov. `functional-tests.yml` calls `behat.yml` for MediaWiki 1.43 and 1.46 on SQLite and MariaDB, 1.43 with SMW (this job also uploads Behat coverage), and MediaWiki master in the daily cron only. `lint.yml` runs actionlint, gherkin-lint and typos. `docs.yml` builds the command reference from the docblocks with `tools/docs.php` and publishes it to GitHub Pages on pushes to `main` that change `src/`, the script or the workflow; pull requests only build it. `.codecov.yml` requires 100% coverage, combining unit and Behat coverage. `composer.lock` is committed and resolved for PHP 8.1 (`config.platform`).
 
 ## Roadmap
 
