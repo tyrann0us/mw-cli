@@ -34,7 +34,7 @@ Feature: Read, edit and manage pages
     When I run "mw page put Foo /tmp/foo.wiki"
     Then STDERR should contain:
       """
-      Warning: No change: 'Foo' already has this text.
+      Warning: No change: page 'Foo' already has this text.
       """
     When I run "echo 'Second version' | mw page put Foo --minor"
     Then STDOUT should be like:
@@ -303,7 +303,7 @@ Feature: Read, edit and manage pages
     When I run "echo y | mw page delete Foo --reason=Cleanup"
     Then STDOUT should be:
       """
-      Success: Deleted 'Foo'.
+      Success: Deleted page 'Foo'.
       """
     When I try "mw page get Foo"
     Then the return code should be 1
@@ -318,7 +318,7 @@ Feature: Read, edit and manage pages
     When I run "mw page delete Main_Page main_Page --yes"
     Then STDOUT should be:
       """
-      Success: Deleted 'Main Page'.
+      Success: Deleted page 'Main Page'.
       """
 
   Scenario: Move a page with or without a redirect
@@ -326,7 +326,7 @@ Feature: Read, edit and manage pages
     And I run "mw page move Foo Bar --reason=Rename"
     Then STDOUT should be:
       """
-      Success: Moved 'Foo' to 'Bar'.
+      Success: Moved page 'Foo' to 'Bar'.
       """
     When I run "mw page get Foo"
     Then STDOUT should be:
@@ -352,17 +352,17 @@ Feature: Read, edit and manage pages
     When I run "mw page protect Main_Page --edit=sysop --reason=Busy"
     Then STDOUT should be:
       """
-      Success: Protected 'Main Page': edit=sysop, move=all.
+      Success: Protected page 'Main Page': edit=sysop, move=all.
       """
     When I run "mw page protect Main_Page --move=autoconfirmed --expiry='1 week'"
     Then STDOUT should be:
       """
-      Success: Protected 'Main Page': edit=sysop, move=autoconfirmed.
+      Success: Protected page 'Main Page': edit=sysop, move=autoconfirmed.
       """
     When I run "mw page protect Main_Page --edit=all"
     Then STDOUT should be:
       """
-      Success: Protected 'Main Page': edit=all, move=autoconfirmed.
+      Success: Protected page 'Main Page': edit=all, move=autoconfirmed.
       """
     When I run "mw maint sql --query='SELECT pr_type, pr_level, pr_expiry IS NULL AS forever FROM page_restrictions'"
     Then STDOUT should contain:
@@ -399,7 +399,7 @@ Feature: Read, edit and manage pages
     When I run "mw page purge Main_Page"
     Then STDOUT should be:
       """
-      Success: Purged 'Main Page'.
+      Success: Purged page 'Main Page'.
       """
 
   @ssh

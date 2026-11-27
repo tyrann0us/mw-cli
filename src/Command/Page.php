@@ -112,7 +112,7 @@ class Page extends Command
         $this->check($updater->getStatus());
         $name = $title->getPrefixedText();
         if ($revision === null) {
-            Runner::warning("No change: '$name' already has this text.");
+            Runner::warning("No change: page '$name' already has this text.");
         }
         if (!empty($assocArgs['porcelain'])) {
             Runner::line((string) $page->getId());
@@ -289,7 +289,7 @@ class Page extends Command
         foreach ($titles as $title) {
             $delete = $factory->newDeletePage($title->toPageIdentity(), $performer);
             $this->check($delete->deleteUnsafe((string) ($assocArgs['reason'] ?? '')));
-            Runner::success("Deleted '{$title->getPrefixedText()}'.");
+            Runner::success("Deleted page '{$title->getPrefixedText()}'.");
         }
     }
 
@@ -330,7 +330,7 @@ class Page extends Command
             (string) ($assocArgs['reason'] ?? ''),
             ($assocArgs['redirect'] ?? true) !== false
         ));
-        Runner::success("Moved '{$from->getPrefixedText()}' to '{$to->getPrefixedText()}'.");
+        Runner::success("Moved page '{$from->getPrefixedText()}' to '{$to->getPrefixedText()}'.");
     }
 
     /**
@@ -394,7 +394,8 @@ class Page extends Command
             array_keys($limit),
             $limit
         );
-        Runner::success("Protected '{$title->getPrefixedText()}': " . implode(', ', $now) . '.');
+        $name = $title->getPrefixedText();
+        Runner::success("Protected page '$name': " . implode(', ', $now) . '.');
     }
 
     /**
@@ -448,8 +449,8 @@ class Page extends Command
         foreach ($this->existing($args) as $title) {
             $name = $title->getPrefixedText();
             $purged = $this->services()->getWikiPageFactory()->newFromTitle($title)->doPurge();
-            $stopped = "A hook stopped purging '$name'.";
-            $purged ? Runner::success("Purged '$name'.") : Runner::warning($stopped);
+            $stopped = "A hook stopped purging page '$name'.";
+            $purged ? Runner::success("Purged page '$name'.") : Runner::warning($stopped);
         }
     }
 

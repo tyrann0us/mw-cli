@@ -198,12 +198,12 @@ class SearchReplace extends Command
         $status = $conflict ? StatusValue::newFatal('edit-conflict') : $updater->getStatus();
         // Earlier pages are saved already, so a failed page doesn't stop the others.
         if (!$status->isOK()) {
-            Runner::warning("Skipped '$name': " . $this->statusText($status));
+            Runner::warning("Skipped page '$name': " . $this->statusText($status));
             return 'skipped';
         }
         if ($revision === null) {
             // Pre-save transform, e.g. trimming trailing spaces, can undo the change.
-            Runner::warning("No change: '$name' would be saved with the same text.");
+            Runner::warning("No change: page '$name' would be saved with the same text.");
             return 'unchanged';
         }
         // Like maintenance scripts, so a long run doesn't leave replicas behind.

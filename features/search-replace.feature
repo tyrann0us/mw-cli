@@ -186,7 +186,7 @@ Feature: Search and replace text in many pages
       """
     And STDERR should contain:
       """
-      Warning: Skipped 'Bar': Edit conflict.
+      Warning: Skipped page 'Bar': Edit conflict.
       """
     And STDERR should contain:
       """
@@ -203,7 +203,7 @@ Feature: Search and replace text in many pages
     And I run "mw search-replace '/a$/' 'a ' --namespace=0 --yes"
     Then STDERR should contain:
       """
-      Warning: No change: 'Foo' would be saved with the same text.
+      Warning: No change: page 'Foo' would be saved with the same text.
       """
     And STDOUT should be:
       """
