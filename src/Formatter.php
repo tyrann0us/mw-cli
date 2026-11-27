@@ -23,24 +23,26 @@ class Formatter
     {
         $fields = self::fields($assoc, $defaultFields, $rows[array_key_first($rows)] ?? null);
         $rows = array_map(static fn (array $row): array => self::pick($row, $fields), array_values($rows));
+        $format = self::format($assoc);
         if (isset($assoc['field'])) {
-            foreach ($rows as $row) {
-                echo self::scalar($row[$fields[0]]), "\n";
+            $values = array_column($rows, $fields[0]);
+            if ($format === 'json') {
+                // One JSON array, `[]` for no rows.
+                echo json_encode($values, self::JSON), "\n";
+                return;
+            }
+            foreach ($values as $value) {
+                echo self::scalar($value), "\n";
             }
             return;
         }
 
-        switch (self::format($assoc)) {
+        switch ($format) {
             case 'json':
                 echo json_encode($rows, self::JSON), "\n";
                 break;
             case 'csv':
-                $out = fopen('php://output', 'w') ?: Runner::error("Can't write to stdout.");
-                fputcsv($out, $fields, ',', '"', '');
-                foreach ($rows as $row) {
-                    fputcsv($out, array_map([self::class, 'scalar'], $row), ',', '"', '');
-                }
-                fclose($out);
+                self::csv($fields, $rows);
                 break;
             case 'yaml':
                 echo self::yaml($rows);
@@ -70,24 +72,47 @@ class Formatter
     {
         $fields = self::fields($assoc, array_keys($row), $row);
         $row = self::pick($row, $fields);
+        $format = self::format($assoc, ['table', 'json', 'csv', 'yaml']);
         if (isset($assoc['field'])) {
-            echo self::scalar($row[$fields[0]]), "\n";
+            $value = $row[$fields[0]];
+            echo $format === 'json'
+                ? json_encode($value, self::JSON)
+                : self::scalar($value), "\n";
             return;
         }
-        switch (self::format($assoc, ['table', 'json', 'yaml'])) {
+        $pairs = static fn (): array => array_map(
+            static fn (string $field, mixed $value): array
+                => ['Field' => $field, 'Value' => $value],
+            array_keys($row),
+            $row
+        );
+        switch ($format) {
             case 'json':
                 echo json_encode($row, self::JSON), "\n";
+                break;
+            case 'csv':
+                self::csv(['Field', 'Value'], $pairs());
                 break;
             case 'yaml':
                 echo self::yaml($row);
                 break;
             default:
-                $pairs = [];
-                foreach ($row as $field => $value) {
-                    $pairs[] = ['Field' => $field, 'Value' => $value];
-                }
-                echo self::table(['Field', 'Value'], $pairs);
+                echo self::table(['Field', 'Value'], $pairs());
         }
+    }
+
+    /**
+     * @param string[] $header
+     * @param list<array<string,mixed>> $rows
+     */
+    private static function csv(array $header, array $rows): void
+    {
+        $out = fopen('php://output', 'w') ?: Runner::error("Can't write to stdout.");
+        fputcsv($out, $header, ',', '"', '');
+        foreach ($rows as $row) {
+            fputcsv($out, array_map([self::class, 'scalar'], $row), ',', '"', '');
+        }
+        fclose($out);
     }
 
     /**
@@ -191,7 +216,8 @@ class Formatter
     }
 
     /**
-     * Block YAML. Values are written as JSON scalars, which YAML reads unchanged.
+     * Block YAML. Strings are plain where YAML reads them unchanged; others
+     * are written as JSON scalars.
      *
      * @param array<string,mixed>|list<array<string,mixed>> $data
      */
@@ -201,7 +227,7 @@ class Formatter
         $map = static function (array $row, string $indent): string {
             $lines = '';
             foreach ($row as $key => $value) {
-                $lines .= "$indent$key: " . json_encode($value, self::JSON) . "\n";
+                $lines .= "$indent$key: " . self::yamlScalar($value) . "\n";
             }
             return $lines;
         };
@@ -212,5 +238,17 @@ class Formatter
             $out .= "-\n" . $map($row, '  ');
         }
         return $out;
+    }
+
+    private static function yamlScalar(mixed $value): string
+    {
+        $reserved = ['true', 'false', 'null', 'yes', 'no', 'on', 'off', 'y', 'n'];
+        // Quoted: anything a YAML 1.1 parser reads as a number, date, bool or null, or that
+        // breaks the line's syntax.
+        $plain = is_string($value) && $value !== ''
+            && !preg_match('/^[\s\-?:,\[\]{}#&*!|>\'"%@`~.+=\d]|: | #|:$|\s$/', $value)
+            && !preg_match('/[\x00-\x1F\x7F\x{85}\x{2028}\x{2029}]/u', $value)
+            && !in_array(strtolower($value), $reserved, true);
+        return $plain ? $value : (string) json_encode($value, self::JSON);
     }
 }

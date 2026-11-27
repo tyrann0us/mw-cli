@@ -6,7 +6,6 @@ namespace MwCli\Command;
 
 use MediaWiki\Category\Category;
 use MediaWiki\CommentStore\CommentStoreComment;
-use MediaWiki\Context\RequestContext;
 use MediaWiki\MainConfigNames;
 use MediaWiki\Revision\SlotRecord;
 use MediaWiki\Title\Title;
@@ -21,6 +20,8 @@ use Wikimedia\ParamValidator\TypeDef\ExpiryDef;
  */
 class Page extends Command
 {
+    public const GROUPS = ['category' => 'Lists the categories of a page.'];
+
     /**
      * Prints the wikitext of a page.
      *
@@ -65,6 +66,9 @@ class Page extends Command
      * [--create-only]
      * : Fail if the page exists.
      *
+     * [--porcelain]
+     * : Print only the page ID, for scripts.
+     *
      * [--no-create]
      * : Fail if the page doesn't exist.
      *
@@ -85,10 +89,11 @@ class Page extends Command
             Runner::error("Can't read '$file'.");
         }
         $page = $this->services()->getWikiPageFactory()->newFromTitle($title);
-        if (!empty($assocArgs['create-only']) && $page->exists()) {
+        $existed = $page->exists();
+        if (!empty($assocArgs['create-only']) && $existed) {
             Runner::error("Page '{$title->getPrefixedText()}' already exists.");
         }
-        if (($assocArgs['create'] ?? true) === false && !$page->exists()) {
+        if (($assocArgs['create'] ?? true) === false && !$existed) {
             $this->missing($title);
         }
         $content = $this->services()->getContentHandlerFactory()
@@ -105,11 +110,18 @@ class Page extends Command
                 | (($assocArgs['create'] ?? true) === false ? EDIT_UPDATE : 0)
         );
         $this->check($updater->getStatus());
+        $name = $title->getPrefixedText();
         if ($revision === null) {
-            Runner::warning("No change: '{$title->getPrefixedText()}' already has this text.");
+            Runner::warning("No change: page '$name' already has this text.");
+        }
+        if (!empty($assocArgs['porcelain'])) {
+            Runner::line((string) $page->getId());
             return;
         }
-        Runner::success("Saved '{$title->getPrefixedText()}' as revision {$revision->getId()}.");
+        if ($revision !== null) {
+            $action = $existed ? 'Updated' : 'Created';
+            Runner::success("$action page '$name' (revision {$revision->getId()}).");
+        }
     }
 
     /**
@@ -158,10 +170,7 @@ class Page extends Command
         $query = $this->services()->getPageStore()->newSelectQueryBuilder($db)
             ->orderBy(['page_namespace', 'page_title'])
             ->caller(__METHOD__);
-        $limit = $this->limit($assocArgs);
-        if ($limit !== null) {
-            $query->limit($limit);
-        }
+        $this->applyLimit($query, $assocArgs);
         $namespace = isset($assocArgs['namespace'])
             ? $this->namespace((string) $assocArgs['namespace'])
             : null;
@@ -214,7 +223,7 @@ class Page extends Command
      * : table, json, csv, yaml, ids or count.
      *
      * [--fields=<fields>]
-     * : Comma-separated fields to show: title, category. Default: both.
+     * : Comma-separated fields to show: title (the category's title, as in `mw category list`).
      *
      * [--field=<field>]
      * : Prints only the value of this field.
@@ -222,7 +231,7 @@ class Page extends Command
      * ## EXAMPLES
      *
      *     mw page category list Main_Page
-     *     mw page category list Apple --field=category
+     *     mw page category list Apple --field=title
      *
      * @param string[] $args
      * @param array<string,string|bool> $assocArgs
@@ -236,15 +245,15 @@ class Page extends Command
         }
         $categories = [];
         foreach ($this->services()->getWikiPageFactory()->newFromTitle($title)->getCategories() as $category) {
-            $categories[] = $category->getPrefixedText();
+            $categories[] = $category->getText();
         }
         sort($categories);
         $rows = [];
         // getCategories() takes no limit, and a page has few categories.
         foreach (array_slice($categories, 0, $limit) as $category) {
-            $rows[] = ['title' => $title->getPrefixedText(), 'category' => $category];
+            $rows[] = ['title' => $category];
         }
-        Formatter::items($rows, $assocArgs, ['title', 'category']);
+        Formatter::items($rows, $assocArgs, ['title']);
     }
 
     /**
@@ -280,7 +289,7 @@ class Page extends Command
         foreach ($titles as $title) {
             $delete = $factory->newDeletePage($title->toPageIdentity(), $performer);
             $this->check($delete->deleteUnsafe((string) ($assocArgs['reason'] ?? '')));
-            Runner::success("Deleted '{$title->getPrefixedText()}'.");
+            Runner::success("Deleted page '{$title->getPrefixedText()}'.");
         }
     }
 
@@ -321,7 +330,7 @@ class Page extends Command
             (string) ($assocArgs['reason'] ?? ''),
             ($assocArgs['redirect'] ?? true) !== false
         ));
-        Runner::success("Moved '{$from->getPrefixedText()}' to '{$to->getPrefixedText()}'.");
+        Runner::success("Moved page '{$from->getPrefixedText()}' to '{$to->getPrefixedText()}'.");
     }
 
     /**
@@ -385,7 +394,8 @@ class Page extends Command
             array_keys($limit),
             $limit
         );
-        Runner::success("Protected '{$title->getPrefixedText()}': " . implode(', ', $now) . '.');
+        $name = $title->getPrefixedText();
+        Runner::success("Protected page '$name': " . implode(', ', $now) . '.');
     }
 
     /**
@@ -439,8 +449,8 @@ class Page extends Command
         foreach ($this->existing($args) as $title) {
             $name = $title->getPrefixedText();
             $purged = $this->services()->getWikiPageFactory()->newFromTitle($title)->doPurge();
-            $stopped = "A hook stopped purging '$name'.";
-            $purged ? Runner::success("Purged '$name'.") : Runner::warning($stopped);
+            $stopped = "A hook stopped purging page '$name'.";
+            $purged ? Runner::success("Purged page '$name'.") : Runner::warning($stopped);
         }
     }
 
@@ -448,7 +458,7 @@ class Page extends Command
     {
         $title = $this->services()->getTitleFactory()->newFromText($name);
         if ($title === null || !$title->canExist()) {
-            Runner::error("Invalid page title '$name'.");
+            Runner::error("Invalid title '$name'.");
         }
         return $title;
     }
@@ -469,7 +479,10 @@ class Page extends Command
         }
         $missing = array_keys(array_filter($titles, static fn (Title $title): bool => !$title->exists()));
         if ($missing) {
-            Runner::error("Page not found: '" . implode("', '", $missing) . "'.");
+            $list = "'" . implode("', '", $missing) . "'";
+            Runner::error(
+                count($missing) === 1 ? "Page $list doesn't exist." : "Pages $list don't exist."
+            );
         }
         return array_values($titles);
     }
@@ -490,8 +503,7 @@ class Page extends Command
     private function check(StatusValue $status): void
     {
         if (!$status->isOK()) {
-            $formatter = $this->services()->getFormatterFactory()->getStatusFormatter(RequestContext::getMain());
-            Runner::error($formatter->getMessage($status)->text());
+            Runner::error($this->statusText($status));
         }
     }
 }

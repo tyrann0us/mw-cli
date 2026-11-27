@@ -27,5 +27,5 @@ Feature: Render wikitext to HTML
     Then the return code should be 1
     And STDERR should contain:
       """
-      Error: Invalid title.
+      Error: Invalid title '<>'.
       """

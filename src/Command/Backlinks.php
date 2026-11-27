@@ -56,7 +56,7 @@ class Backlinks extends Command
         $target = $this->services()->getTitleFactory()->newFromText($args[0], static::DEFAULT_NAMESPACE);
         // Interwiki and special pages have no link table entries, and a bare "#fragment" names no page.
         if (!$target || $target->isExternal() || $target->getNamespace() < 0 || $target->getDBkey() === '') {
-            Runner::error("Invalid title: $args[0].");
+            Runner::error("Invalid title '$args[0]'.");
         }
         $query = $this->services()->getConnectionProvider()->getReplicaDatabase()->newSelectQueryBuilder()
             ->select(['page_id', 'page_namespace', 'page_title'])
@@ -65,10 +65,7 @@ class Backlinks extends Command
             ->where($this->services()->getLinksMigration()->getLinksConditions(static::TABLE, $target))
             ->orderBy(['page_namespace', 'page_title'])
             ->caller(__METHOD__);
-        $limit = $this->limit($assocArgs);
-        if ($limit !== null) {
-            $query->limit($limit);
-        }
+        $this->applyLimit($query, $assocArgs);
         if (isset($assocArgs['namespace'])) {
             $namespace = $this->namespace((string) $assocArgs['namespace']);
             $query->andWhere([static::FROM . '_namespace' => $namespace]);

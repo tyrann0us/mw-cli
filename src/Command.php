@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace MwCli;
 
+use MediaWiki\Context\DerivativeContext;
+use MediaWiki\Context\RequestContext;
 use MediaWiki\MediaWikiServices;
 use MediaWiki\Title\Title;
 use MediaWiki\User\User;
+use StatusValue;
 use Wikimedia\Rdbms\IExpression;
 use Wikimedia\Rdbms\IReadableDatabase;
 use Wikimedia\Rdbms\LikeValue;
+use Wikimedia\Rdbms\SelectQueryBuilder;
 
 /**
  * Base for classes in src/Command/. The file name is the command name (SearchReplace.php is
@@ -21,6 +25,15 @@ abstract class Command
 {
     /** False for commands that run without loading MediaWiki. */
     public const NEEDS_WIKI = true;
+
+    /**
+     * Descriptions of subcommand groups for help, e.g. ['category' => '…'] for `page category`.
+     *
+     * @var array<string,string>
+     */
+    public const GROUPS = [];
+
+    private ?User $performer = null;
 
     public function __construct(protected Runner $cli)
     {
@@ -35,7 +48,30 @@ abstract class Command
      * The user from --user (name, or ID if no user has that name), or MediaWiki's
      * "Maintenance script" system user.
      */
-    protected function performer(): User
+    public function performer(): User
+    {
+        $this->performer ??= $this->findPerformer();
+        return $this->performer;
+    }
+
+    /**
+     * MediaWiki's message for a status that isn't OK, in English like mw's own messages.
+     * The user language stays as configured for everything else (e.g. formatted results).
+     *
+     * A template, not StatusValue<mixed>: StatusValue only became generic after 1.43.
+     *
+     * @template T of StatusValue
+     * @param T $status
+     */
+    protected function statusText(StatusValue $status): string
+    {
+        $context = new DerivativeContext(RequestContext::getMain());
+        $context->setLanguage('en');
+        return $this->services()->getFormatterFactory()->getStatusFormatter($context)
+            ->getMessage($status)->text();
+    }
+
+    private function findPerformer(): User
     {
         $name = $this->cli->flag('user');
         if ($name === null) {
@@ -88,6 +124,19 @@ abstract class Command
             Runner::error('--limit must be a positive number.');
         }
         return (int) $limit;
+    }
+
+    /**
+     * Applies --limit to the query, if given.
+     *
+     * @param array<string,string|bool> $assocArgs
+     */
+    protected function applyLimit(SelectQueryBuilder $query, array $assocArgs): void
+    {
+        $limit = $this->limit($assocArgs);
+        if ($limit !== null) {
+            $query->limit($limit);
+        }
     }
 
     /**

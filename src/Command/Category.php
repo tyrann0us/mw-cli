@@ -33,7 +33,7 @@ class Category extends Command
      *
      * [--fields=<fields>]
      * : Comma-separated fields to show: title, members, pages, subcats, files. members is the
-     * : sum of the other three. Default: title, pages, subcats, files.
+     * sum of the other three. Default: title, pages, subcats, files.
      *
      * [--field=<field>]
      * : Prints only the value of this field.
@@ -56,16 +56,13 @@ class Category extends Command
             ->where('cat_pages > 0')
             ->orderBy('cat_title')
             ->caller(__METHOD__);
-        $limit = $this->limit($assocArgs);
-        if ($limit !== null) {
-            $query->limit($limit);
-        }
+        $this->applyLimit($query, $assocArgs);
         if (isset($assocArgs['prefix'])) {
             $prefix = (string) $assocArgs['prefix'];
             $query->andWhere($this->titlePrefix($db, 'cat_title', $prefix, NS_CATEGORY));
         }
 
-        $formatter = $this->services()->getTitleFormatter();
+        $titles = $this->services()->getTitleFactory();
         $rows = [];
         foreach ($query->fetchResultSet() as $row) {
             /** @var stdClass $row */
@@ -74,7 +71,7 @@ class Category extends Command
             $subcats = (int) $row->cat_subcats;
             $files = (int) $row->cat_files;
             $rows[] = [
-                'title' => $formatter->formatTitle(NS_CATEGORY, $row->cat_title),
+                'title' => $titles->makeTitle(NS_CATEGORY, $row->cat_title)->getText(),
                 'members' => $members,
                 // The counts can drift apart, so never below 0, as in Category::getPageCount().
                 'pages' => max(0, $members - $subcats - $files),

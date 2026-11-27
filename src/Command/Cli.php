@@ -36,7 +36,7 @@ class Cli extends Command
      * ## OPTIONS
      *
      * [--format=<format>]
-     * : table, json or yaml.
+     * : table, json, csv or yaml.
      *
      * [--fields=<fields>]
      * : Comma-separated fields to show.

@@ -37,7 +37,7 @@ Feature: List recent changes
       """
     And STDOUT should contain:
       """
-      Z"
+      :
       """
 
   Scenario: Recent changes can be filtered

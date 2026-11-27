@@ -10,8 +10,15 @@ Feature: Show information about the wiki
     Then STDOUT should be:
       """
       ---
-      name: "Test Wiki"
-      language: "en"
+      name: Test Wiki
+      language: en
+      """
+    When I run "mw site info --fields=name,language --format=csv"
+    Then STDOUT should be:
+      """
+      Field,Value
+      name,"Test Wiki"
+      language,en
       """
     When I run "mw site info --format=json --fields=path"
     Then STDOUT should be:

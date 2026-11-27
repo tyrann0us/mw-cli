@@ -1,5 +1,4 @@
 default:
   suites:
     default:
-      paths: ['%paths.base%/features']
       contexts: [MwCli\Tests\Behat\FeatureContext]

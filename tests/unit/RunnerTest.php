@@ -109,12 +109,13 @@ class RunnerTest extends TestCase
         $cli = new Runner([], $this->dir, null);
         foreach (
             [
-            "'nope' is not a registered subcommand of 'page category'. See 'mw help page category'."
+            "'nope' is not a registered subcommand of 'page category'. "
+                . "See 'mw help page category' for available subcommands."
                 => [ 'page', 'category', 'nope' ],
-            "'category-list' is not a registered subcommand of 'page'. See 'mw help page'."
-                => [ 'page', 'category-list' ],
-            "'categoryList' is not a registered subcommand of 'page'. See 'mw help page'."
-                => [ 'page', 'categoryList' ],
+            "'category-list' is not a registered subcommand of 'page'. "
+                . "See 'mw help page' for available subcommands." => [ 'page', 'category-list' ],
+            "'categoryList' is not a registered subcommand of 'page'. "
+                . "See 'mw help page' for available subcommands." => [ 'page', 'categoryList' ],
             ] as $message => $args
         ) {
             try {
@@ -134,10 +135,13 @@ class RunnerTest extends TestCase
         (new Help($cli))->__invoke(['page', 'category'], []);
         (new Help($cli))->__invoke(['page'], []);
         $out = (string) ob_get_clean();
-        $this->assertStringContainsString("NAME\n\n  mw page category list <title>", $out);
+        $this->assertStringContainsString("NAME\n\n  mw page category list\n", $out);
+        $this->assertStringContainsString("SYNOPSIS\n\n  mw page category list <title>", $out);
+        $this->assertStringContainsString("    \$ mw page category list Main_Page\n", $out);
         $this->assertStringContainsString(
-            "usage: mw page category <subcommand>\n\n"
-                . "Subcommands:\n  list  Lists the categories of a page.\n",
+            "NAME\n\n  mw page category\n\nDESCRIPTION\n\n  Lists the categories of a page.\n\n"
+                . "SYNOPSIS\n\n  mw page category <command>\n\n"
+                . "SUBCOMMANDS\n\n  list  Lists the categories of a page.\n\nGLOBAL PARAMETERS",
             $out
         );
         $this->assertMatchesRegularExpression(

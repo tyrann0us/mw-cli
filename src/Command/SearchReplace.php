@@ -7,7 +7,6 @@ namespace MwCli\Command;
 use MediaWiki\Category\Category;
 use MediaWiki\CommentStore\CommentStoreComment;
 use MediaWiki\Content\Content;
-use MediaWiki\Context\RequestContext;
 use MediaWiki\Page\PageIdentity;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Revision\SlotRecord;
@@ -76,25 +75,20 @@ class SearchReplace extends Command
         [$regex, $replacement] = $args;
         self::checkRegex($regex);
         $pages = $this->pages($assocArgs);
-        if ($this->cli->flag('user') !== null) {
-            // Fails on an unknown user now. Without --user, the maintenance user is created only
-            // once confirmed.
-            $this->performer();
-        }
         $dryRun = !empty($assocArgs['dry-run']);
         [$changes, $total] = $this->changes($pages, $regex, $replacement, $dryRun);
 
         if (!$changes) {
-            Runner::success('Nothing to replace.');
+            Runner::success($dryRun ? '0 replacements to be made.' : 'Made 0 replacements.');
             return;
         }
-        $summary = self::plural(count($changes), 'page') . ', '
-            . self::plural($total, 'replacement');
+        $summary = self::plural($total, 'replacement') . ' in '
+            . self::plural(count($changes), 'page');
         if ($dryRun) {
-            Runner::success("Would change $summary.");
+            Runner::success("$summary to be made.");
             return;
         }
-        Runner::confirm("Change $summary?", $assocArgs);
+        Runner::confirm("Make $summary?", $assocArgs);
         $performer = $this->performer();
 
         $comment = CommentStoreComment::newUnsavedComment((string) (
@@ -103,12 +97,16 @@ class SearchReplace extends Command
         ));
         $flags = EDIT_UPDATE | (!empty($assocArgs['minor']) ? EDIT_MINOR : 0);
         $results = ['saved' => 0, 'skipped' => 0, 'unchanged' => 0];
+        $made = 0;
         foreach ($changes as $change) {
-            $results[$this->save($change, $performer, $comment, $flags)]++;
+            $result = $this->save($change, $performer, $comment, $flags);
+            $results[$result]++;
+            $made += $result === 'saved' ? $change[4] : 0;
         }
-        $changed = 'Changed ' . self::plural($results['saved'], 'page');
+        $changed = 'Made ' . self::plural($made, 'replacement') . ' in '
+            . self::plural($results['saved'], 'page');
         if ($results['skipped']) {
-            Runner::error("$changed, skipped {$results['skipped']}.");
+            Runner::error("$changed, skipped " . self::plural($results['skipped'], 'page') . '.');
         }
         Runner::success("$changed.");
     }
@@ -200,20 +198,19 @@ class SearchReplace extends Command
         $status = $conflict ? StatusValue::newFatal('edit-conflict') : $updater->getStatus();
         // Earlier pages are saved already, so a failed page doesn't stop the others.
         if (!$status->isOK()) {
-            $statusFormatter = $this->services()->getFormatterFactory()
-                ->getStatusFormatter(RequestContext::getMain());
-            Runner::warning("Skipped '$name': " . $statusFormatter->getMessage($status)->text());
+            Runner::warning("Skipped page '$name': " . $this->statusText($status));
             return 'skipped';
         }
         if ($revision === null) {
             // Pre-save transform, e.g. trimming trailing spaces, can undo the change.
-            Runner::warning("No change: '$name' would be saved with the same text.");
+            Runner::warning("No change: page '$name' would be saved with the same text.");
             return 'unchanged';
         }
         // Like maintenance scripts, so a long run doesn't leave replicas behind.
         $this->services()->getDBLoadBalancerFactory()->waitForReplication();
         $replaced = self::plural($count, 'replacement');
-        Runner::success("Saved '$name' as revision {$revision->getId()} ($replaced).");
+        // Progress only: the one Success line comes at the end.
+        Runner::progress("Updated page '$name' (revision {$revision->getId()}, $replaced).");
         return 'saved';
     }
 

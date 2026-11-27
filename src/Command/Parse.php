@@ -36,7 +36,7 @@ class Parse extends Command
     {
         $titleText = (string) ($assocArgs['title'] ?? 'API');
         $title = $this->services()->getTitleFactory()->newFromText($titleText)
-            ?? Runner::error('Invalid title.');
+            ?? Runner::error("Invalid title '$titleText'.");
         $file = $args[0] ?? null;
         if ($file !== null && (is_dir($file) || !is_readable($file))) {
             Runner::error("Can't read '$file'.");

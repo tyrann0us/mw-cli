@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MwCli\Command;
 
+use MediaWiki\Context\RequestContext;
 use MwCli\Command;
 use MwCli\Formatter;
 use MwCli\Runner;
@@ -78,7 +79,7 @@ class Ask extends Command
         );
         // The store adds errors too, e.g. for unknown properties, and then returns no rows.
         $result = ServicesFactory::getInstance()->getStore()->getQueryResult($query);
-        $errors = ProcessingErrorMsgHandler::normalizeAndDecodeMessages($result->getErrors());
+        $errors = self::englishErrors($result->getErrors());
         if ($errors) {
             Runner::error(implode(' ', $errors));
         }
@@ -108,6 +109,25 @@ class Ask extends Command
         // The limit may come from --limit, limit= or offset= in the query, or SMW's maximum.
         if ($result->hasFurtherResults()) {
             Runner::warning('There are more results than shown.');
+        }
+    }
+
+    /**
+     * SMW's errors in English, like mw's own. Its decoder only knows the user and content
+     * language, so the user language is English for this call only.
+     *
+     * @param array<mixed> $errors
+     * @return string[]
+     */
+    private static function englishErrors(array $errors): array
+    {
+        $context = RequestContext::getMain();
+        $language = $context->getLanguage();
+        $context->setLanguage('en');
+        try {
+            return ProcessingErrorMsgHandler::normalizeAndDecodeMessages($errors);
+        } finally {
+            $context->setLanguage($language);
         }
     }
 }

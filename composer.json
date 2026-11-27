@@ -63,7 +63,6 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "MwCli\\Tests\\": "tests/unit/",
             "MwCli\\Tests\\Behat\\": "features/bootstrap/"
         }
     },
@@ -76,7 +75,7 @@
         "phpcs:fix": "@php ./vendor/bin/phpcbf",
         "test": [
             "phpunit",
-            "behat"
+            "behat --no-interaction"
         ],
         "phpstan": [
             "phpstan analyse --memory-limit=1G",

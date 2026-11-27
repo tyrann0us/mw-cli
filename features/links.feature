@@ -63,24 +63,24 @@ Feature: List pages that link to or transclude a page
     Then the return code should be 1
     And STDERR should contain:
       """
-      Error: Invalid title: [[Target.
+      Error: Invalid title '[[Target'.
       """
     When I try "mw backlinks Special:Version"
     Then STDERR should contain:
       """
-      Error: Invalid title: Special:Version.
+      Error: Invalid title 'Special:Version'.
       """
     When I try "mw backlinks '#Section'"
     Then the return code should be 1
     And STDERR should contain:
       """
-      Error: Invalid title: #Section.
+      Error: Invalid title '#Section'.
       """
     When I try "mw transclusions '#Section'"
     Then the return code should be 1
     And STDERR should contain:
       """
-      Error: Invalid title: #Section.
+      Error: Invalid title '#Section'.
       """
     When I try "mw transclusions Template:Greeting --namespace=Nope"
     Then the return code should be 1
